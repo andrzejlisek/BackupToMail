@@ -1,0 +1,7 @@
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Debug\BackupToMail.exe.config
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Debug\BackupToMail.exe
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Debug\BackupToMail.pdb
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Debug\MailKit.dll
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Debug\MimeKit.dll
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\obj\Debug\BackupToMail.exe
+F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\obj\Debug\BackupToMail.pdb
