@@ -125,10 +125,38 @@ namespace BackupToMail
 				try
 				{
 					string MsgAtta_Raw = Msg.HtmlBody;
-					int I1 = MsgAtta_Raw.IndexOf("src=\"data:image/png;base64,", StringComparison.InvariantCulture);
+
+					int I1 = MsgAtta_Raw.IndexOf("src=\"cid:", StringComparison.InvariantCulture);
 					int I2 = MsgAtta_Raw.IndexOf("\"", I1 + 25, StringComparison.InvariantCulture);
-					MsgAtta_Raw = MsgAtta_Raw.Substring(I1 + 27, I2 - I1 - 27);
-					return ConvImg2Raw(new MemoryStream(Convert.FromBase64String(MsgAtta_Raw)));
+					
+					
+					if ((I1 > 0) && (I2 > I1))
+					{
+						MsgAtta_Raw = MsgAtta_Raw.Substring(I1 + 9, I2 - I1 - 9);
+						
+						foreach (MimeEntity MsgAtta_ in Msg.BodyParts)
+						{
+							if (MsgAtta_.ContentId == MsgAtta_Raw)
+							{
+								MimePart MsgAtta_MP = (MimePart)MsgAtta_;
+								using (StreamReader SR = new StreamReader(MsgAtta_MP.Content.Stream))
+								{
+									MsgAtta_Raw = SR.ReadToEnd();
+									return ConvImg2Raw(new MemoryStream(Convert.FromBase64String(MsgAtta_Raw)));
+								}
+							}
+						}						
+					}
+					else
+					{
+						I1 = MsgAtta_Raw.IndexOf("src=\"data:image/png;base64,", StringComparison.InvariantCulture);
+						I2 = MsgAtta_Raw.IndexOf("\"", I1 + 25, StringComparison.InvariantCulture);
+						if ((I1 > 0) && (I2 > I1))
+						{
+							MsgAtta_Raw = MsgAtta_Raw.Substring(I1 + 27, I2 - I1 - 27);
+							return ConvImg2Raw(new MemoryStream(Convert.FromBase64String(MsgAtta_Raw)));
+						}
+					}
 				}
 				catch
 				{

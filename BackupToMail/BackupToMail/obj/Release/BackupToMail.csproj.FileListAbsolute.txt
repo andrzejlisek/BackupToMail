@@ -2,5 +2,4 @@ F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\
 F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Release\BackupToMail.exe
 F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Release\MailKit.dll
 F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\bin\Release\MimeKit.dll
-F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\obj\Release\BackupToMail.csprojResolveAssemblyReference.cache
 F:\__ToBackup\Develop\Csharp\_Console\SD\BackupToMail\BackupToMail\BackupToMail\obj\Release\BackupToMail.exe

@@ -392,7 +392,8 @@ The mail can store file segment data inside body or as attachment\. There are su
 * Binary attachment
 * PNG image attachment
 * Base64 in plain text body
-* PNG image in HTML body
+* PNG image resource used in HTML body
+* PNG image embedded in HTML body
 
 ## Binary attachment specification
 
@@ -406,7 +407,11 @@ This type is simmilar to binary attachment\. The attachment is the image in PNG 
 
 The message of this type does not contain an attachment\. The segment data is encoded as Base64 and there is in plain text body\.
 
-## PNG image in HTML body specification
+## PNG image resource used in HTML body specification
+
+The message is similar to PNG image attachment, but the attachment is not a regular attached fie, instead of this, there is a resource used in HTML body, which contains the image **cid** link\. Some e\-mail application will not display the attachment as attached file\.
+
+## PNG image embedded in HTML body specification
 
 The message is similar to PNG image attachment, but the message does not contain an attachment\. The message consists of HTML body, where the image is embedded in HTML content\. Embedding image in HTML code complies HTML specification, but some e\-mail applications may not display image\.
 

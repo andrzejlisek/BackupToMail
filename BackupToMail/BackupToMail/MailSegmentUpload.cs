@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading;
 using MailKit.Net.Smtp;
 using MimeKit;
+using MimeKit.Utils;
 
 namespace BackupToMail
 {
@@ -58,7 +59,14 @@ namespace BackupToMail
 			Msg.From.Add(new MailboxAddress(MailAccountList[MSP.AccountSrc].Address, MailAccountList[MSP.AccountSrc].Address));
             for (int i = 0; i < AccountDst.Length; i++)
             {
-				Msg.To.Add(new MailboxAddress(MailAccountList[AccountDst[i]].Address, MailAccountList[AccountDst[i]].Address));
+            	if (MailAccountList[AccountDst[i]].Address == MailAccountList[MSP.AccountSrc].Address)
+            	{
+					Msg.To.Add(new MailboxAddress(MailAccountList[AccountDst[i]].Address, MailAccountList[AccountDst[i]].Address));
+            	}
+            	else
+            	{
+					Msg.Bcc.Add(new MailboxAddress(MailAccountList[AccountDst[i]].Address, MailAccountList[AccountDst[i]].Address));
+            	}
             }
 			Msg.Subject = AttaInfo;
             
@@ -84,6 +92,13 @@ namespace BackupToMail
 		            }
 					break;
 				case 3:
+					{
+						MimeEntity BB_ = BB.LinkedResources.Add("data.png", ConvRaw2Img(MSP.SegmentBuf, SegmentImageSize), ContentType.Parse("image/png"));
+						BB_.ContentId = MimeUtils.GenerateMessageId();
+	            		BB.HtmlBody = "<img src=\"cid:" + BB_.ContentId + "\">";
+					}
+					break;
+				case 4:
 					{
 	            		BB.HtmlBody = "<img src=\"data:image/png;base64," + ConvRaw2Txt(ConvRaw2Img(MSP.SegmentBuf, SegmentImageSize).ToArray()) + "\">";
 					}

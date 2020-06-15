@@ -132,7 +132,8 @@ namespace BackupToMail
 				"Binary attachment",
 				"PNG image attachment",
 				"Base64 in plain text body",
-				"PNG image in HTML body"
+				"PNG image resource used in HTML body",
+				"PNG image embedded in HTML body",
 			};			
 
 			string[] DownloadTypeDesc = new string[]
@@ -216,7 +217,7 @@ namespace BackupToMail
 				}
 				if (args.Length >= 8)
 				{
-					if ((StrToInt(args[7]) >= 0) && (StrToInt(args[7]) <= 3))
+					if ((StrToInt(args[7]) >= 0) && (StrToInt(args[7]) <= 4))
 					{
 						SegmentType = StrToInt(args[7]);
 					}
@@ -439,6 +440,7 @@ namespace BackupToMail
 				Console.WriteLine(" 1 - " + SegmentTypeDesc[1]);
 				Console.WriteLine(" 2 - " + SegmentTypeDesc[2]);
 				Console.WriteLine(" 3 - " + SegmentTypeDesc[3]);
+				Console.WriteLine(" 4 - " + SegmentTypeDesc[4]);
 				Console.WriteLine("Use BATCHUPLOAD or UPLOADBATCH to ommit upload confirmation.");
 				Console.WriteLine();
 				Console.WriteLine("Download file:");
