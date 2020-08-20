@@ -17,11 +17,10 @@ namespace BackupToMail
 {
 	class Program
 	{
-
-		public static void Main(string[] args)
+        public static void Main(string[] args)
 		{
-			Main_(args);
-		}
+            Main_(args);
+        }
 		
 		/// <summary>
 		/// Converts string to integer, returns -1 if convert is not possible 
@@ -132,8 +131,7 @@ namespace BackupToMail
 				"Binary attachment",
 				"PNG image attachment",
 				"Base64 in plain text body",
-				"PNG image resource used in HTML body",
-				"PNG image embedded in HTML body",
+				"PNG image in HTML body"
 			};			
 
 			string[] DownloadTypeDesc = new string[]
@@ -179,8 +177,11 @@ namespace BackupToMail
 					case "CONFIG": ProgMode = 3; break;
 					case "CONFIGTEST": ProgMode = 13; break;
 					case "TESTCONFIG": ProgMode = 13; break;
-				}
-			}
+                    case "FILE": ProgMode = 4; break;
+                    case "BATCHFILE": ProgMode = 14; break;
+                    case "FILEBATCH": ProgMode = 14; break;
+                }
+            }
 			
 			
 			// Upload mode
@@ -197,8 +198,30 @@ namespace BackupToMail
 					if ((AccSrc_[i][0] >= 0) && (AccSrc_[i][0] < MailSegment.MailAccountList.Count))
 					{
 						AccSrc.Add(AccSrc_[i][0]);
+						if ((AccSrc_[i][1] != 0) || (AccSrc_[i][2] != 0))
+						{
+							AccSrc.Add(-1);
+						}
 					}
 				}
+				while ((AccSrc.Count > 0) && (AccSrc[0] < 0))
+				{
+					AccSrc.RemoveAt(0);
+				}
+				while ((AccSrc.Count > 0) && (AccSrc[AccSrc.Count - 1] < 0))
+				{
+					AccSrc.RemoveAt(AccSrc.Count - 1);
+				}
+				for (int i = 0; i < (AccSrc.Count - 1); i++)
+				{
+					if ((AccSrc[i] < 0) && (AccSrc[i + 1] < 0))
+					{
+						AccSrc.RemoveAt(i);
+						i--;
+					}
+				}
+				AccSrc.Insert(0, -1);
+				AccSrc.Add(-1);
 				
 				for (int i = 0; i < AccDst_.Count; i++)
 				{
@@ -217,7 +240,7 @@ namespace BackupToMail
 				}
 				if (args.Length >= 8)
 				{
-					if ((StrToInt(args[7]) >= 0) && (StrToInt(args[7]) <= 4))
+					if ((StrToInt(args[7]) >= 0) && (StrToInt(args[7]) <= 3))
 					{
 						SegmentType = StrToInt(args[7]);
 					}
@@ -231,23 +254,37 @@ namespace BackupToMail
 				}
 
 
-				Console.WriteLine("Upload file");
-				Console.WriteLine("File name: " + ItemName);
-				Console.WriteLine("Data file: " + ItemData);
-				Console.WriteLine("Map file: " + ItemMap);
-				Console.WriteLine("Source accounts:");
-				for (int i = 0; i < AccSrc.Count; i++)
+				List<string> WelcomeMsg = new List<string>();
+				WelcomeMsg.Add("Upload file");
+				WelcomeMsg.Add("File name: " + ItemName);
+				WelcomeMsg.Add("Data file: " + ItemData);
+				WelcomeMsg.Add("Map file: " + ItemMap);
+				WelcomeMsg.Add("Source accounts:");
+				int GroupN = 0;
+				for (int i = 0; i < (AccSrc.Count - 1); i++)
 				{
-					Console.WriteLine(" " + AccSrc[i] + ". " + MailSegment.MailAccountList[AccSrc[i]].Address);
+					if (AccSrc[i] >= 0)
+					{
+						WelcomeMsg.Add("  Account " + AccSrc[i] + " - " + MailSegment.MailAccountList[AccSrc[i]].Address);
+					}
+					else
+					{
+						GroupN++;
+						WelcomeMsg.Add(" Group " + GroupN + ": ");
+					}
 				}
-				Console.WriteLine("Destination accounts:");
+				WelcomeMsg.Add("Destination accounts:");
 				for (int i = 0; i < AccDst.Count; i++)
 				{
-					Console.WriteLine(" " + AccDst[i] + ". " + MailSegment.MailAccountList[AccDst[i]].Address);
+					WelcomeMsg.Add(" Account " + AccDst[i] + " - " + MailSegment.MailAccountList[AccDst[i]].Address);
 				}
-				Console.WriteLine("Segment size: " + SegmentSize);
-				Console.WriteLine("Segment type: " + SegmentTypeDesc[SegmentType]);
-				Console.WriteLine("Segment image size: " + SegmentImgSize + "x" + MailSegment.ImgHFromW(SegmentSize, SegmentImgSize));
+				WelcomeMsg.Add("Segment size: " + SegmentSize);
+				WelcomeMsg.Add("Segment type: " + SegmentTypeDesc[SegmentType]);
+				WelcomeMsg.Add("Segment image size: " + SegmentImgSize + "x" + MailSegment.ImgHFromW(SegmentSize, SegmentImgSize));
+				for (int i = 0; i < WelcomeMsg.Count; i++)
+				{
+					Console.WriteLine(WelcomeMsg[i]);
+				}
 				Console.WriteLine();
 				
 				bool Continue = true;
@@ -258,6 +295,10 @@ namespace BackupToMail
 				}
 				if (Continue)
 				{
+					for (int i = 0; i < WelcomeMsg.Count; i++)
+					{
+						MailSegment.Log(WelcomeMsg[i]);
+					}
 					MailSegment.FileUpload(ItemName, ItemData, ItemMap, AccSrc.ToArray(), AccDst.ToArray(), SegmentSize, SegmentType, SegmentImgSize);
 				}
 			}
@@ -319,81 +360,91 @@ namespace BackupToMail
 					}
 				}
 
-				Console.WriteLine("Download or check file");
-				Console.WriteLine("File name: " + ItemName);
-				Console.WriteLine("Data file: " + ItemData);
-				Console.WriteLine("Map file: " + ItemMap);
-				Console.WriteLine("Download from accounts:");
+				
+				List<string> WelcomeMsg = new List<string>();
+				WelcomeMsg.Add("Download or check file");
+				WelcomeMsg.Add("File name: " + ItemName);
+				WelcomeMsg.Add("Data file: " + ItemData);
+				WelcomeMsg.Add("Map file: " + ItemMap);
+				WelcomeMsg.Add("Download from accounts:");
+				string Temp;
+
 				for (int i = 0; i < AccSrc.Count; i++)
 				{
-					Console.Write(" " + AccSrc[i] + ". " + MailSegment.MailAccountList[AccSrc[i]].Address + " - ");
+					Temp = " Account " + AccSrc[i] + " - " + MailSegment.MailAccountList[AccSrc[i]].Address + " - ";
 					if ((AccMin[i] > 0) || (AccMax[i] > 0))
 					{
-						Console.Write("messages");
+						Temp = Temp + "messages";
 						if (AccMin[i] > 0)
 						{
-							Console.Write(" from " + AccMin[i]);
+							Temp = Temp + " from " + AccMin[i];
 						}
 						if (AccMax[i] > 0)
 						{
-							Console.Write(" to " + AccMax[i]);
+							Temp = Temp + " to " + AccMax[i];
 						}
 					}
 					else
 					{
-						Console.Write("all messages");
+						Temp = Temp + "all messages";
 					}
-					Console.WriteLine();
+					WelcomeMsg.Add(Temp);
 				}
-				Console.Write("Download or check type: ");
+
 				switch (FileDownloadMode_)
 				{
-					case MailSegment.FileDownloadMode.Download: Console.WriteLine(DownloadTypeDesc[0]); break;
-					case MailSegment.FileDownloadMode.CheckExistHeader: Console.WriteLine(DownloadTypeDesc[1]); break;
-					case MailSegment.FileDownloadMode.CheckExistBody: Console.WriteLine(DownloadTypeDesc[2]); break;
-					case MailSegment.FileDownloadMode.CompareHeader: Console.WriteLine(DownloadTypeDesc[3]); break;
-					case MailSegment.FileDownloadMode.CompareBody: Console.WriteLine(DownloadTypeDesc[4]); break;
+					case MailSegment.FileDownloadMode.Download: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[0]); break;
+					case MailSegment.FileDownloadMode.CheckExistHeader: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[1]); break;
+					case MailSegment.FileDownloadMode.CheckExistBody: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[2]); break;
+					case MailSegment.FileDownloadMode.CompareHeader: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[3]); break;
+					case MailSegment.FileDownloadMode.CompareBody: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[4]); break;
 				}
-				Console.Write("Delete messages: ");
+				
+				Temp = "Delete messages: ";
 				if (FileDeleteMode_ == MailSegment.FileDeleteMode.None)
 				{
-					Console.Write(DeleteTypeDesc[0]);
+					Temp = Temp + DeleteTypeDesc[0];
 				}
 				else
 				{
 					bool Other = false;
     				if ((FileDeleteMode_ & MailSegment.FileDeleteMode.Bad) == MailSegment.FileDeleteMode.Bad)
     				{
-    					if (Other) { Console.Write(", "); }
-						Console.Write(DeleteTypeDesc[1]);
+    					if (Other) { Temp = Temp + ", "; }
+						Temp = Temp + DeleteTypeDesc[1];
     					Other = true;
     				}
     				if ((FileDeleteMode_ & MailSegment.FileDeleteMode.Duplicate) == MailSegment.FileDeleteMode.Duplicate)
     				{
-    					if (Other) { Console.Write(", "); }
-						Console.Write(DeleteTypeDesc[2]);
+    					if (Other) { Temp = Temp + ", "; }
+						Temp = Temp + DeleteTypeDesc[2];
     					Other = true;
     				}
     				if ((FileDeleteMode_ & MailSegment.FileDeleteMode.ThisFile) == MailSegment.FileDeleteMode.ThisFile)
     				{
-    					if (Other) { Console.Write(", "); }
-						Console.Write(DeleteTypeDesc[3]);
+    					if (Other) { Temp = Temp + ", "; }
+						Temp = Temp + DeleteTypeDesc[3];
     					Other = true;
     				}
     				if ((FileDeleteMode_ & MailSegment.FileDeleteMode.OtherMsg) == MailSegment.FileDeleteMode.OtherMsg)
     				{
-    					if (Other) { Console.Write(", "); }
-						Console.Write(DeleteTypeDesc[4]);
+    					if (Other) { Temp = Temp + ", "; }
+						Temp = Temp + DeleteTypeDesc[4];
     					Other = true;
     				}
     				if ((FileDeleteMode_ & MailSegment.FileDeleteMode.OtherFiles) == MailSegment.FileDeleteMode.OtherFiles)
     				{
-    					if (Other) { Console.Write(", "); }
-						Console.Write(DeleteTypeDesc[5]);
+    					if (Other) { Temp = Temp + ", "; }
+						Temp = Temp + DeleteTypeDesc[5];
     					Other = true;
     				}
 				}
-				Console.WriteLine();
+				WelcomeMsg.Add(Temp);
+				
+				for (int i = 0; i < WelcomeMsg.Count; i++)
+				{
+					Console.WriteLine(WelcomeMsg[i]);
+				}
 				Console.WriteLine();
 
 				bool Continue = true;
@@ -404,6 +455,10 @@ namespace BackupToMail
 				}
 				if (Continue)
 				{
+					for (int i = 0; i < WelcomeMsg.Count; i++)
+					{
+						MailSegment.Log(WelcomeMsg[i]);
+					}
 					MailSegment.FileDownload(ItemName, ItemData, ItemMap, AccSrc.ToArray(), AccMin.ToArray(), AccMax.ToArray(), FileDownloadMode_, FileDeleteMode_);
 				}
 			}
@@ -428,11 +483,86 @@ namespace BackupToMail
 				}
 			}
 
-			// Help and information
-			if (ProgMode == 0)
+            // Create file
+            if (((ProgMode == 4) || (ProgMode == 14)) && (args.Length >= 3))
+            {
+                string DummyName = args[1];
+                string FileName = args[2];
+                long DummySegmentSize = 0;
+                if (args.Length > 3)
+                {
+                    DummySegmentSize = StrToInt(args[3]);
+                }
+                if (DummySegmentSize <= 0)
+                {
+                    DummySegmentSize = MailSegment.DefaultSegmentSize;
+                }
+                Console.WriteLine("Dummy file: " + DummyName);
+                Console.WriteLine("Real file: " + FileName);
+                Console.WriteLine("Segment size: " + DummySegmentSize);
+                Console.WriteLine();
+
+                bool Continue = true;
+                if (ProgMode == 4)
+                {
+                    Console.Write("Do you want to continue (Yes/No)? ");
+                    Continue = StrToBool(Console.ReadLine());
+                }
+                if (Continue)
+                {
+                    if (DummyName.StartsWith(MailFile.DummyFileSign, StringComparison.InvariantCulture))
+                    {
+                        RandomSequence RandomSequence_ = RandomSequence.CreateRS(DummyName.Substring(1), MailSegment.RandomCacheStep);
+                        if (RandomSequence_ == null)
+                        {
+                            throw new Exception(RandomSequence.ErrorMsg);
+                        }
+                        long DummyFileSize = RandomSequence.DummyFileSize;
+                        long SegmentI = 0;
+                        long DispI = 1;
+                        long DispL = DummyFileSize / DummySegmentSize;
+                        if ((DummyFileSize % DummySegmentSize) > 0)
+                        {
+                            DispL++;
+                        }
+                        try
+                        {
+                            Stopwatch_ SW = new Stopwatch_();
+                            FileStream FS_ = new FileStream(FileName, FileMode.Create, FileAccess.Write);
+
+                            while (SegmentI < DummyFileSize)
+                            {
+                                Console.Write(DispI + "/" + DispL + " - ");
+                                if (DummySegmentSize > (DummyFileSize - SegmentI))
+                                {
+                                    DummySegmentSize = (DummyFileSize - SegmentI);
+                                }
+
+                                byte[] Raw = RandomSequence_.GenSeq(SegmentI, DummySegmentSize);
+                                FS_.Write(Raw, 0, (int)DummySegmentSize);
+
+                                SegmentI += DummySegmentSize;
+                                DispI++;
+                                Console.WriteLine("OK - " + MailSegment.TimeHMSM(SW.Elapsed()));
+                            }
+                            FS_.Close();
+                            Console.WriteLine("File created in time: " + MailSegment.TimeHMSM(SW.Elapsed()));
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("File creation error: " + e.Message);
+                        }
+                    }
+                }
+            }
+
+            // Help and information
+            if (ProgMode == 0)
 			{
-				Console.WriteLine("Upload file:");
-				Console.WriteLine("BackupToMail UPLOAD <item name> <data file> <map file>");
+                Console.WriteLine("BackupToMail - command-line application to use mailbox as backup storage.");
+                Console.WriteLine("");
+                Console.WriteLine("Upload file:");
+                Console.WriteLine("BackupToMail UPLOAD <item name> <data file> <map file>");
 				Console.WriteLine("<source account list by commas> <destination account list by commas>");
 				Console.WriteLine("[<segment size> <segment type> <image width>]");
 				Console.WriteLine("Segment types:");
@@ -440,7 +570,6 @@ namespace BackupToMail
 				Console.WriteLine(" 1 - " + SegmentTypeDesc[1]);
 				Console.WriteLine(" 2 - " + SegmentTypeDesc[2]);
 				Console.WriteLine(" 3 - " + SegmentTypeDesc[3]);
-				Console.WriteLine(" 4 - " + SegmentTypeDesc[4]);
 				Console.WriteLine("Use BATCHUPLOAD or UPLOADBATCH to ommit upload confirmation.");
 				Console.WriteLine();
 				Console.WriteLine("Download file:");
@@ -470,8 +599,12 @@ namespace BackupToMail
 				Console.WriteLine("Print general and account configuration with connection test:");
 				Console.WriteLine("BackupToMail CONFIGTEST <account list by commas>");
 				Console.WriteLine("BackupToMail TESTCONFIG <account list by commas>");
-			}
-			Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine("Create file based on dummy file generator:");
+                Console.WriteLine("BackupToMail FILE <dummy file definition> <file name> <segment size>");
+                Console.WriteLine();
+            }
+            Console.WriteLine();
 		}
 	}
 }

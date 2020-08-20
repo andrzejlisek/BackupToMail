@@ -12,11 +12,11 @@ using System.IO;
 
 namespace BackupToMail
 {
-	/// <summary>
-	/// Configuration file
-	/// </summary>
-	public class ConfigFile
-	{
+    /// <summary>
+    /// Configuration file
+    /// </summary>
+    public class ConfigFile
+    {
         private Dictionary<string, string> Raw = new Dictionary<string, string>();
 
         public void FileLoad(string FileName)
@@ -32,18 +32,18 @@ namespace BackupToMail
                     int I = S.IndexOf("=");
                     if (I >= 0)
                     {
-                    	string RawK = S.Substring(0, I);
-                    	if (!Raw.ContainsKey(RawK))
-                    	{
-	                        if (S.Length > (I + 1))
-	                        {
-	                            Raw.Add(RawK, S.Substring(I + 1));
-	                        }
-	                        else
-	                        {
-	                            Raw.Add(RawK, "");
-	                        }
-                    	}
+                        string RawK = S.Substring(0, I);
+                        if (!Raw.ContainsKey(RawK))
+                        {
+                            if (S.Length > (I + 1))
+                            {
+                                Raw.Add(RawK, S.Substring(I + 1));
+                            }
+                            else
+                            {
+                                Raw.Add(RawK, "");
+                            }
+                        }
                     }
                 }
                 F.Close();
@@ -165,12 +165,12 @@ namespace BackupToMail
         {
             if (Raw.ContainsKey(Name))
             {
-            	if ((Raw[Name] == "1") || (Raw[Name].ToUpperInvariant() == "TRUE") || (Raw[Name].ToUpperInvariant() == "YES") || (Raw[Name].ToUpperInvariant() == "T") || (Raw[Name].ToUpperInvariant() == "Y"))
+                if ((Raw[Name] == "1") || (Raw[Name].ToUpperInvariant() == "TRUE") || (Raw[Name].ToUpperInvariant() == "YES") || (Raw[Name].ToUpperInvariant() == "T") || (Raw[Name].ToUpperInvariant() == "Y"))
                 {
                     Value = true;
                     return true;
                 }
-            	if ((Raw[Name] == "0") || (Raw[Name].ToUpperInvariant() == "FALSE") || (Raw[Name].ToUpperInvariant() == "NO") || (Raw[Name].ToUpperInvariant() == "F") || (Raw[Name].ToUpperInvariant() == "N"))
+                if ((Raw[Name] == "0") || (Raw[Name].ToUpperInvariant() == "FALSE") || (Raw[Name].ToUpperInvariant() == "NO") || (Raw[Name].ToUpperInvariant() == "F") || (Raw[Name].ToUpperInvariant() == "N"))
                 {
                     Value = false;
                     return true;
@@ -235,5 +235,5 @@ namespace BackupToMail
         {
             return Raw.ContainsKey(Name);
         }
-	}
+    }
 }

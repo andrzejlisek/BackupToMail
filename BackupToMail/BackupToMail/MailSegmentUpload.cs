@@ -13,7 +13,6 @@ using System.Text;
 using System.Threading;
 using MailKit.Net.Smtp;
 using MimeKit;
-using MimeKit.Utils;
 
 namespace BackupToMail
 {
@@ -40,11 +39,11 @@ namespace BackupToMail
 			string AccountInfo = "";
 			if (MailAccountList[MSP.AccountSrc].SmtpConnect)
 			{
-				AccountInfo = "(account " + MSP.AccountSrc + ")";
+				AccountInfo = "(group " + (MSP.AccountSrcG + 1) + ", account " + MSP.AccountSrc + ")";
 			}
 			else
 			{
-				AccountInfo = "(account " + MSP.AccountSrc + ", slot " + (MSP.SmtpClientSlot + 1) + ")";
+				AccountInfo = "(group " + (MSP.AccountSrcG + 1) + ", account " + MSP.AccountSrc + ", slot " + (MSP.SmtpClientSlot + 1) + ")";
 			}
 			MSP.Good = true;
 
@@ -59,14 +58,7 @@ namespace BackupToMail
 			Msg.From.Add(new MailboxAddress(MailAccountList[MSP.AccountSrc].Address, MailAccountList[MSP.AccountSrc].Address));
             for (int i = 0; i < AccountDst.Length; i++)
             {
-            	if (MailAccountList[AccountDst[i]].Address == MailAccountList[MSP.AccountSrc].Address)
-            	{
-					Msg.To.Add(new MailboxAddress(MailAccountList[AccountDst[i]].Address, MailAccountList[AccountDst[i]].Address));
-            	}
-            	else
-            	{
-					Msg.Bcc.Add(new MailboxAddress(MailAccountList[AccountDst[i]].Address, MailAccountList[AccountDst[i]].Address));
-            	}
+				Msg.To.Add(new MailboxAddress(MailAccountList[AccountDst[i]].Address, MailAccountList[AccountDst[i]].Address));
             }
 			Msg.Subject = AttaInfo;
             
@@ -92,13 +84,6 @@ namespace BackupToMail
 		            }
 					break;
 				case 3:
-					{
-						MimeEntity BB_ = BB.LinkedResources.Add("data.png", ConvRaw2Img(MSP.SegmentBuf, SegmentImageSize), ContentType.Parse("image/png"));
-						BB_.ContentId = MimeUtils.GenerateMessageId();
-	            		BB.HtmlBody = "<img src=\"cid:" + BB_.ContentId + "\">";
-					}
-					break;
-				case 4:
 					{
 	            		BB.HtmlBody = "<img src=\"data:image/png;base64," + ConvRaw2Txt(ConvRaw2Img(MSP.SegmentBuf, SegmentImageSize).ToArray()) + "\">";
 					}
@@ -166,9 +151,15 @@ namespace BackupToMail
 		/// <param name="SegmentMode"></param>
 		/// <param name="SegmentImageSize"></param>
 		/// <param name="cancel"></param>
-		public static void FileUploadMsg(int[] AccountSrc, int[] AccountDst, List<MailSendParam> MailSendParam_, ref MailFile MF, string FileName, ref int FileSegmentProgress, int FileSegmentCount, int FileSegmentToDo, int FileSegmentSize, int SegmentMode, int SegmentImageSize, CancellationTokenSource cancel)
+		public static bool FileUploadMsg(int[] AccountSrc, int[] AccountDst, List<MailSendParam> MailSendParam_, ref MailFile MF, string FileName, ref int FileSegmentProgress, int FileSegmentCount, int FileSegmentToDo, int FileSegmentSize, int SegmentMode, int SegmentImageSize, CancellationTokenSource cancel)
 		{
 			Stopwatch_ SW = new Stopwatch_();
+
+			for (int i = 0; i < MailSendParam_.Count; i++)
+			{
+				string ConsoleInfo = CreateConsoleInfoU(MailSendParam_[i].FileSegmentNum, FileSegmentCount);
+				Console_WriteLine(ConsoleInfo + " - to upload from group " + (MailSendParam_[i].AccountSrcG + 1) + ", account " + MailSendParam_[i].AccountSrc);
+			}
 			
 			// Assign slots to each used account to reuse as many of existing connection as possible
 			for (int i = 0; i < AccountSrc.Length; i++)
@@ -231,12 +222,14 @@ namespace BackupToMail
 				I--;
 			}
 
-			// Encounting data size and remofing segments from packet, which are sent correctly,
-			// changing account number to next number for not sent segments
+			// Encounting data size and removing segments from packet, which are sent correctly,
+			// changing account number to next number in current group for not sent segments
+			bool UploadedSomething = false;
 			while (I >= 0)
 			{
 				if (MailSendParam_[I].Good)
 				{
+					UploadedSomething = true;
 					MF.MapSet(MailSendParam_[I].FileSegmentNum, 1);
 					FileSegmentProgress++;
 					TotalSize += MailSendParam_[I].FileSegmentSize;
@@ -246,9 +239,14 @@ namespace BackupToMail
 				{
 					MF.MapSet(MailSendParam_[I].FileSegmentNum, 0);
 					MailSendParam_[I].AccountSrcN++;
-					if (MailSendParam_[I].AccountSrcN >= AccountSrc.Length)
+					if (AccountSrc[MailSendParam_[I].AccountSrcN] < 0)
 					{
-						MailSendParam_[I].AccountSrcN = 0;
+						MailSendParam_[I].AccountSrcN--;
+						while (AccountSrc[MailSendParam_[I].AccountSrcN] >= 0)
+						{
+							MailSendParam_[I].AccountSrcN--;
+						}
+						MailSendParam_[I].AccountSrcN++;
 					}
 					MailSendParam_[I].AccountSrc = AccountSrc[MailSendParam_[I].AccountSrcN];
 					MailSendParam_[I].SmtpClientSlot = -1;
@@ -257,10 +255,33 @@ namespace BackupToMail
 			}
 			
 			// Print progress after packet send attemp and transfer of the packet segments  
-			Console.WriteLine("Upload progress: " + FileSegmentProgress.ToString() + "/" + FileSegmentToDo.ToString());
-			Console.WriteLine("Upload speed: " + KBPS(TotalSize, SW.Elapsed()));
+			Console_WriteLine("Upload progress: " + FileSegmentProgress + "/" + FileSegmentToDo);
+			Console_WriteLine("Upload speed: " + KBPS(TotalSize, SW.Elapsed()));
+			Log(TSW.Elapsed().ToString(), LogDiffS(FileSegmentProgress).ToString(), FileSegmentProgress.ToString(), FileSegmentToDo.ToString(), LogDiffB(KBPS_Bytes).ToString(), KBPS_B(), MF.GetDataSize().ToString(), MF.GetDataSizeSeg().ToString());
+			
+			// If uploaded nothing several times at a row, return false, otherwise return true
+			if (UploadedSomething)
+			{
+				UploadFailureCounter = 0;
+				return true;
+			}
+			else
+			{
+				UploadFailureCounter++;
+				if (UploadFailureCounter >= UploadGroupChange)
+				{
+					UploadFailureCounter = 0;
+					return false;
+				}
+				else
+				{
+					return true;
+				}
+			}
 		}
 
+		static int UploadFailureCounter;
+		
 		/// <summary>
 		/// File upload action
 		/// </summary>
@@ -274,31 +295,41 @@ namespace BackupToMail
 		/// <param name="SegmentImageSize"></param>
 		public static void FileUpload(string FileName, string FilePath, string FileMap, int[] AccountSrc, int[] AccountDst, int FileSegmentSize, int SegmentMode, int SegmentImageSize)
 		{
-			// The file name is stored as digest 
-			FileName = Digest(FileName);
-			if (AccountSrc.Length == 0)
+			// Check account lists
+			if (AccountSrc.Length == 2)
 			{
-				Console.WriteLine("No source accounts");
+				Console_WriteLine("No source accounts");
 				return;
 			}
 			if (AccountDst.Length == 0)
 			{
-				Console.WriteLine("No destination accounts");
+				Console_WriteLine("No destination accounts");
 				return;
 			}
 
+			// The file name is stored as digest 
+			FileName = Digest(FileName);
+			
+			// Reset upload failure counter
+			UploadFailureCounter = 0;
+			
 			MailFile MF = new MailFile();
 			if (MF.Open(true, FilePath, FileMap))
 			{
+                Log("");
+                LogReset();
+                Log("Time stamp", "Uploaded segments since previous entry", "Totally uploaded segments", "All segments", "Uploaded bytes since previous entry", "Totally uploaded bytes", "All bytes by segment count", "All bytes by file size");
+                TSW = new Stopwatch_();
 				KBPSReset();
 				MF.MapChange(1, 2);
 				MF.SetSegmentSize(FileSegmentSize);
 				if (MF.CalcSegmentCount() > 0)
 				{
-					List<MailSendParam> MailSendParam_ = new List<MailSendParam>();
+                    List<MailSendParam> MailSendParam_ = new List<MailSendParam>();
 					
 		            using (CancellationTokenSource cancel = new CancellationTokenSource ())
 		            {
+		            	// Create SMTP client array (not create SMTP connections)
 						SmtpClient[,] SmtpClient_ = new SmtpClient[AccountSrc.Length, ThreadsUpload];
 						for (int i = 0; i < AccountSrc.Length; i++)
 						{
@@ -310,8 +341,28 @@ namespace BackupToMail
 						
 						int FileSegmentProgress = 0;
 						
-						// Number of account which will be aggigned to each segment to send
-						int AccountSrcN = 0;
+						// Current upload group
+						int UploadGroup = 0;
+						
+						// Map of upload account counters
+						List<int> UploadGroupN = new List<int>();
+						
+						// Number of account which will be aggigned to each segment to send, for each group separatelly
+						for (int i = 0; i < (AccountSrc.Length - 1); i++)
+						{
+							if (AccountSrc[i] < 0)
+							{
+								UploadGroupN.Add(-1);
+							}
+							else
+							{
+								if (UploadGroupN[UploadGroupN.Count - 1] < 0)
+								{
+									UploadGroupN[UploadGroupN.Count - 1] = i;
+								}
+							}
+						}
+						
 
 						int FileSegmentCount = MF.GetSegmentCount();
 						
@@ -334,42 +385,139 @@ namespace BackupToMail
 								MailSendParam__.SegmentBuf = SegmentBuf;
 								MailSendParam__.FileSegmentSize = SegmentBuf.Length;
 								MailSendParam__.FileSegmentNum = FileSegmentNum;
-								MailSendParam__.AccountSrcN = AccountSrcN;
-								MailSendParam__.AccountSrc = AccountSrc[AccountSrcN];
+								MailSendParam__.AccountSrcG = UploadGroup;
+								MailSendParam__.AccountSrcN = UploadGroupN[UploadGroup];
+								MailSendParam__.AccountSrc = AccountSrc[MailSendParam__.AccountSrcN];
 								MailSendParam__.SmtpClient_ = SmtpClient_;
 								MailSendParam__.SmtpClientSlot = -1;
 								MailSendParam_.Add(MailSendParam__);
-								Console.WriteLine(ConsoleInfo + " - to upload from account " + AccountSrc[AccountSrcN]);
+
+								// Set the next account to assign to next segment
+								UploadGroupN[UploadGroup]++;
+								if (AccountSrc[UploadGroupN[UploadGroup]] < 0)
+								{
+									UploadGroupN[UploadGroup]--;
+									while (AccountSrc[UploadGroupN[UploadGroup]] >= 0)
+									{
+										UploadGroupN[UploadGroup]--;
+									}
+									UploadGroupN[UploadGroup]++;
+								}
 								
 								// If the number of segments is at least the same as number of threads, there will be attemped to send,
 								// if none of segments are sent, the attemp will be repeated immediately
 					            while (MailSendParam_.Count >= ThreadsUpload)
 								{
-					            	FileUploadMsg(AccountSrc, AccountDst, MailSendParam_, ref MF, FileName, ref FileSegmentProgress, FileSegmentCount, FileSegmentToDo, FileSegmentSize, SegmentMode, SegmentImageSize, cancel);
-								}
+				            		// If FileUploadMsg returned false, the group must be changed
+					            	if (!FileUploadMsg(AccountSrc, AccountDst, MailSendParam_, ref MF, FileName, ref FileSegmentProgress, FileSegmentCount, FileSegmentToDo, FileSegmentSize, SegmentMode, SegmentImageSize, cancel))
+					            	{
+										// Close all opened connections
+										Console_WriteLine("Disconnecting existing connections");
+										for (int i = 0; i < AccountSrc.Length; i++)
+										{
+											for (int ii = 0; ii < ThreadsUpload; ii++)
+											{
+												if (SmtpClient_[i, ii] != null)
+												{
+													if (SmtpClient_[i, ii].IsConnected)
+													{
+														SmtpClient_[i, ii].Disconnect(true, cancel.Token);
+													}
+													SmtpClient_[i, ii].Dispose();
+												}
+											}
+										}
 
-								// Set the next account to assign to next segment
-								AccountSrcN++;
-								if (AccountSrcN >= AccountSrc.Length)
-								{
-									AccountSrcN = 0;
+					            		// Change group
+					            		UploadGroup++;
+					            		if (UploadGroup >= UploadGroupN.Count)
+					            		{
+					            			UploadGroup = 0;
+					            		}
+
+					            		// Assign accounts from next group
+					            		for (int i = 0; i < MailSendParam_.Count; i++)
+					            		{
+					            			MailSendParam_[i].AccountSrcG = UploadGroup;
+					            			MailSendParam_[i].AccountSrcN = UploadGroupN[UploadGroup];
+					            			MailSendParam_[i].AccountSrc = AccountSrc[MailSendParam_[i].AccountSrcN];
+
+											// Set the next account to assign to next segment
+											UploadGroupN[UploadGroup]++;
+											if (AccountSrc[UploadGroupN[UploadGroup]] < 0)
+											{
+												UploadGroupN[UploadGroup]--;
+												while (AccountSrc[UploadGroupN[UploadGroup]] >= 0)
+												{
+													UploadGroupN[UploadGroup]--;
+												}
+												UploadGroupN[UploadGroup]++;
+											}
+					            		}
+					            	}
 								}
 							}
 							else
 							{
-								Console.WriteLine(ConsoleInfo + " - not to upload");
+								Console_WriteLine(ConsoleInfo + " - not to upload");
 							}
 						}
 						
 						// If exists of some of segments to send, which was not sent at the first attemp,
 						// there will be attemped to send once
-						if (MailSendParam_.Count > 0)
+						while (MailSendParam_.Count > 0)
 						{
-			            	FileUploadMsg(AccountSrc, AccountDst, MailSendParam_, ref MF, FileName, ref FileSegmentProgress, FileSegmentCount, FileSegmentToDo, FileSegmentSize, SegmentMode, SegmentImageSize, cancel);
+		            		// If FileUploadMsg returned false, the group must be changed
+							if (!FileUploadMsg(AccountSrc, AccountDst, MailSendParam_, ref MF, FileName, ref FileSegmentProgress, FileSegmentCount, FileSegmentToDo, FileSegmentSize, SegmentMode, SegmentImageSize, cancel))
+							{
+								// Close all opened connections
+								Console_WriteLine("Disconnecting existing connections");
+								for (int i = 0; i < AccountSrc.Length; i++)
+								{
+									for (int ii = 0; ii < ThreadsUpload; ii++)
+									{
+										if (SmtpClient_[i, ii] != null)
+										{
+											if (SmtpClient_[i, ii].IsConnected)
+											{
+												SmtpClient_[i, ii].Disconnect(true, cancel.Token);
+											}
+											SmtpClient_[i, ii].Dispose();
+										}
+									}
+								}
+
+								// Change group
+			            		UploadGroup++;
+			            		if (UploadGroup >= UploadGroupN.Count)
+			            		{
+			            			UploadGroup = 0;
+			            		}
+
+			            		// Assign accounts from next group
+			            		for (int i = 0; i < MailSendParam_.Count; i++)
+			            		{
+			            			MailSendParam_[i].AccountSrcG = UploadGroup;
+			            			MailSendParam_[i].AccountSrcN = UploadGroupN[UploadGroup];
+			            			MailSendParam_[i].AccountSrc = AccountSrc[MailSendParam_[i].AccountSrcN];
+
+									// Set the next account to assign to next segment
+									UploadGroupN[UploadGroup]++;
+									if (AccountSrc[UploadGroupN[UploadGroup]] < 0)
+									{
+										UploadGroupN[UploadGroup]--;
+										while (AccountSrc[UploadGroupN[UploadGroup]] >= 0)
+										{
+											UploadGroupN[UploadGroup]--;
+										}
+										UploadGroupN[UploadGroup]++;
+									}
+			            		}
+							}
 						}
 		
 						// Closing all opened connections
-						Console.WriteLine("Disconnecting existing connections");
+						Console_WriteLine("Disconnecting existing connections");
 						for (int i = 0; i < AccountSrc.Length; i++)
 						{
 							for (int ii = 0; ii < ThreadsUpload; ii++)
@@ -384,27 +532,40 @@ namespace BackupToMail
 								}
 							}
 						}
-						Console.WriteLine("Disconnected");
+						Console_WriteLine("Disconnected");
 		            }
 		            MF.MapCalcStats();
-		            Console.WriteLine();
-		            Console.WriteLine("Total segments: " + MF.GetSegmentCount().ToString());
-		            Console.WriteLine("Segments uploaded previously: " + MF.MapCount(2).ToString());
-		            Console.WriteLine("Segments uploaded now: " + MF.MapCount(1).ToString());
-	            	Console.WriteLine("Uploaded bytes: " + KBPS_B());
-	            	Console.WriteLine("Upload time: " + KBPS_T());
-	            	Console.WriteLine("Average upload speed: " + KBPS());
-				}
-				else
+                    Log("");
+                    Console_WriteLine("");
+                    ConsoleLineToLog = true;
+                    Console_WriteLine("Total segments: " + MF.GetSegmentCount().ToString());
+		            Console_WriteLine("Segments uploaded previously: " + MF.MapCount(2).ToString());
+		            Console_WriteLine("Segments uploaded now: " + MF.MapCount(1).ToString());
+	            	Console_WriteLine("Uploaded bytes: " + KBPS_B());
+	            	Console_WriteLine("Upload time: " + KBPS_T());
+	            	Console_WriteLine("Average upload speed: " + KBPS());
+					Console_WriteLine("Total time: " + TimeHMSM(TSW.Elapsed()));
+                    ConsoleLineToLog = false;
+                }
+                else
 				{
-		            Console.WriteLine("File size is 0 bytes");
-				}
-	            MF.Close();
+                    Log("");
+                    ConsoleLineToLog = true;
+                    Console_WriteLine("File size is 0 bytes");
+                    ConsoleLineToLog = false;
+                }
+                Log("");
+                Log("");
+                MF.Close();
 			}
 			else
 			{
-				Console.WriteLine("File open error");
-				return;
+                ConsoleLineToLog = true;
+                Console_WriteLine("File open error: " + MF.OpenError);
+                ConsoleLineToLog = false;
+                Log("");
+                Log("");
+                return;
 			}
 		}
 		

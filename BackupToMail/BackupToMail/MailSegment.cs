@@ -68,14 +68,33 @@ namespace BackupToMail
 		/// </summary>
 		public static int DefaultImageSize = 4096;
 		
+		public static int UploadGroupChange = 5;
+
+        public static int RandomCacheStep = 25;
+
 		/// <summary>
 		/// Set configuration from configuration file
 		/// </summary>
 		/// <param name="CF"></param>
 		public static void ConfigSet(ConfigFile CF)
 		{
-			ThreadsUpload = CF.ParamGetI("ThreadsUpload");
+			LogFile = CF.ParamGetS("LogFile");
+            RandomCacheStep = CF.ParamGetI("RandomCacheStepBits");
+            if (RandomCacheStep <= 0)
+            {
+                RandomCacheStep = 25;
+            }
+            if (RandomCacheStep > 60)
+            {
+                RandomCacheStep = 60;
+            }
+            ThreadsUpload = CF.ParamGetI("ThreadsUpload");
 			ThreadsDownload = CF.ParamGetI("ThreadsDownload");
+			UploadGroupChange = CF.ParamGetI("UploadGroupChange");
+			if (UploadGroupChange < 1)
+			{
+				UploadGroupChange = 3;
+			}
 			if (ThreadsUpload < 1)
 			{
 				ThreadsUpload = 1;
@@ -105,6 +124,11 @@ namespace BackupToMail
 		}
 		
 		/// <summary>
+		/// Upload and download log file
+		/// </summary>
+		public static string LogFile = "";
+		
+		/// <summary>
 		/// Print general configuration
 		/// </summary>
 		public static void ConfigInfo()
@@ -120,9 +144,12 @@ namespace BackupToMail
 			Console.WriteLine("Accounts: " + MailAccountList.Count + " (from 0 to " + (MailAccountList.Count - 1) +")");
 			Console.WriteLine("Upload threads: " + ThreadsUpload);
 			Console.WriteLine("Download threads: " + ThreadsDownload);
+			Console.WriteLine("Change upload account group after number of failures: " + UploadGroupChange);
 			Console.WriteLine("Default segment type: " + SegmentTypeDesc[DefaultSegmentType]);
 			Console.WriteLine("Default segment size: " + DefaultSegmentSize);
-			Console.WriteLine("Default image size: " + DefaultImageSize + "x" + ImgHFromW(DefaultSegmentSize, DefaultImageSize));
+            Console.WriteLine("Default image size: " + DefaultImageSize + "x" + ImgHFromW(DefaultSegmentSize, DefaultImageSize));
+            Console.WriteLine("Random sequence cache step: " + RandomCacheStep);
+            Console.WriteLine("Log file name: " + LogFile);
 		}
 
 		static MailSegment()
@@ -172,7 +199,16 @@ namespace BackupToMail
 		/// <returns></returns>
 		public static string KBPS_T()
 		{
-			long T = KBPS_Time;
+			return TimeHMSM(KBPS_Time);
+		}
+
+		/// <summary>
+		/// Convert time from millisecind count to hh:mm:ss.ms form
+		/// </summary>
+		/// <param name="T"></param>
+		/// <returns></returns>
+		public static string TimeHMSM(long T)
+		{
 			long H = T / (1000 * 60 * 60);
 			T = T - (H * 1000 * 60 * 60);
 			long M = T / (1000 * 60);
@@ -226,6 +262,7 @@ namespace BackupToMail
 		public class MailSendParam
 		{
 			public int Idx;
+			public int AccountSrcG;
 			public int AccountSrcN;
 			public int AccountSrc;
 			public bool Good = false;
@@ -608,7 +645,8 @@ namespace BackupToMail
 	    	}
 	    	return true;
 	    }
-	    
+
+        public static bool ConsoleLineToLog = false;
 	    
 	    /// <summary>
 	    /// Write line to console from thread other than main thread
@@ -618,7 +656,187 @@ namespace BackupToMail
 	    {
 			Monitor.Enter(Console_);
 	    	Console.WriteLine(Str);
-			Monitor.Exit(Console_);
+            if (ConsoleLineToLog)
+            {
+                Log(Str);
+            }
+            Monitor.Exit(Console_);
 	    }
-	}
+
+	    /// <summary>
+	    /// Write line to console
+	    /// </summary>
+	    /// <param name="Str"></param>
+	    public static void Console_WriteLine(string Str)
+	    {
+	    	Console.WriteLine(Str);
+            if (ConsoleLineToLog)
+            {
+                Log(Str);
+            }
+        }
+
+        /// <summary>
+        /// Write text to console
+        /// </summary>
+        /// <param name="Str"></param>
+        public static void Console_Write(string Str)
+	    {
+	    	Console.Write(Str);
+	    }
+	    
+	    /// <summary>
+	    /// Write one text to log file
+	    /// </summary>
+	    /// <param name="T1"></param>
+	    public static void Log(string T1)
+	    {
+	    	if (LogFile != "")
+	    	{
+	    		try
+	    		{
+			    	FileStream FS = new FileStream(LogFile, FileMode.Append, FileAccess.Write);
+			    	StreamWriter SW = new StreamWriter(FS);
+			    	SW.WriteLine(T1);
+			    	SW.Close();
+			    	FS.Close();
+	    		}
+	    		catch
+	    		{
+	    			
+	    		}
+	    	}
+	    }
+	    
+	    /// <summary>
+	    /// Write two texts to log file
+	    /// </summary>
+	    /// <param name="T1"></param>
+	    /// <param name="T2"></param>
+	    public static void Log(string T1, string T2)
+	    {
+	    	Log(T1 + "\t" + T2);
+	    }
+
+	    /// <summary>
+	    /// Write three texts to log file
+	    /// </summary>
+	    /// <param name="T1"></param>
+	    /// <param name="T2"></param>
+	    /// <param name="T3"></param>
+	    public static void Log(string T1, string T2, string T3)
+	    {
+	    	Log(T1 + "\t" + T2 + "\t" + T3);
+	    }
+
+	    /// <summary>
+	    /// Write four texts to log file
+	    /// </summary>
+	    /// <param name="T1"></param>
+	    /// <param name="T2"></param>
+	    /// <param name="T3"></param>
+	    /// <param name="T4"></param>
+	    public static void Log(string T1, string T2, string T3, string T4)
+	    {
+	    	Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4);
+	    }
+
+        /// <summary>
+        /// Write five texts to log file
+        /// </summary>
+        /// <param name="T1"></param>
+        /// <param name="T2"></param>
+        /// <param name="T3"></param>
+        /// <param name="T4"></param>
+        /// <param name="T5"></param>
+        public static void Log(string T1, string T2, string T3, string T4, string T5)
+        {
+            Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5);
+        }
+
+        /// <summary>
+        /// Write six texts to log file
+        /// </summary>
+        /// <param name="T1"></param>
+        /// <param name="T2"></param>
+        /// <param name="T3"></param>
+        /// <param name="T4"></param>
+        /// <param name="T5"></param>
+        /// <param name="T6"></param>
+        public static void Log(string T1, string T2, string T3, string T4, string T5, string T6)
+        {
+            Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5 + "\t" + T6);
+        }
+
+        /// <summary>
+        /// Write seven texts to log file
+        /// </summary>
+        /// <param name="T1"></param>
+        /// <param name="T2"></param>
+        /// <param name="T3"></param>
+        /// <param name="T4"></param>
+        /// <param name="T5"></param>
+        /// <param name="T6"></param>
+        /// <param name="T7"></param>
+        public static void Log(string T1, string T2, string T3, string T4, string T5, string T6, string T7)
+        {
+            Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5 + "\t" + T6 + "\t" + T7);
+        }
+
+        /// <summary>
+        /// Write eight texts to log file
+        /// </summary>
+        /// <param name="T1"></param>
+        /// <param name="T2"></param>
+        /// <param name="T3"></param>
+        /// <param name="T4"></param>
+        /// <param name="T5"></param>
+        /// <param name="T6"></param>
+        /// <param name="T7"></param>
+        /// <param name="T8"></param>
+        public static void Log(string T1, string T2, string T3, string T4, string T5, string T6, string T7, string T8)
+        {
+            Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5 + "\t" + T6 + "\t" + T7 + "\t" + T8);
+        }
+
+        /// <summary>
+        /// Write nine texts to log file
+        /// </summary>
+        /// <param name="T1"></param>
+        /// <param name="T2"></param>
+        /// <param name="T3"></param>
+        /// <param name="T4"></param>
+        /// <param name="T5"></param>
+        /// <param name="T6"></param>
+        /// <param name="T7"></param>
+        /// <param name="T8"></param>
+        /// <param name="T9"></param>
+        public static void Log(string T1, string T2, string T3, string T4, string T5, string T6, string T7, string T8, string T9)
+        {
+            Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5 + "\t" + T6 + "\t" + T7 + "\t" + T8 + "\t" + T9);
+        }
+
+        static int LogTempS;
+        static long LogTempB;
+
+        public static void LogReset()
+        {
+            LogTempS = 0;
+            LogTempB = 0;
+        }
+
+        public static int LogDiffS(int NewVal)
+        {
+            int _ = NewVal - LogTempS;
+            LogTempS = NewVal;
+            return _;
+        }
+
+        public static long LogDiffB(long NewVal)
+        {
+            long _ = NewVal - LogTempB;
+            LogTempB = NewVal;
+            return _;
+        }
+    }
 }

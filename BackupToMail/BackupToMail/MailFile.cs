@@ -17,6 +17,8 @@ namespace BackupToMail
 	/// </summary>
 	public class MailFile
 	{
+        public const string DummyFileSign = "*";
+
 		/// <summary>
 		/// Mutex for data file
 		/// </summary>
@@ -77,12 +79,36 @@ namespace BackupToMail
 		/// Map file name
 		/// </summary>
 		string ParamMapFile = "";
-		
-		/// <summary>
-		/// Open data file before operation
-		/// </summary>
-		/// <returns></returns>
-		FileStream DataOpen()
+
+
+        bool IsDummyFile = false;
+        long DummyFileSize = 0;
+        long FileSize__ = 0;
+
+        public long GetDataSizeSeg()
+        {
+            return SegmentSizeL * (long)SegmentCount;
+        }
+
+        public long GetDataSize()
+        {
+            if (IsDummyFile)
+            {
+                return DummyFileSize;
+            }
+            else
+            {
+                return FileSize__;
+            }
+        }
+
+        RandomSequence RandomSequence_;
+
+        /// <summary>
+        /// Open data file before operation
+        /// </summary>
+        /// <returns></returns>
+        FileStream DataOpen()
 		{
 			if (ParamDataRead)
 			{
@@ -116,7 +142,9 @@ namespace BackupToMail
 				return new FileStream(ParamMapFile, FileMode.Create, FileAccess.ReadWrite);
 			}
 		}
-		
+
+        public string OpenError = "";
+
 		/// <summary>
 		/// Open data/map file object with accessibility test before action 
 		/// </summary>
@@ -126,7 +154,8 @@ namespace BackupToMail
 		/// <returns></returns>
 		public bool Open(bool DataRead, string DataFile, string MapFile)
 		{
-			ParamDataRead = DataRead;
+            OpenError = "";
+            ParamDataRead = DataRead;
 			ParamDataFile = DataFile;
 			ParamMapFile = MapFile;
 			SegmentSizeL = 0;
@@ -136,13 +165,27 @@ namespace BackupToMail
 			{
 				if (DataFile != null)
 				{
-					FileStream Temp = DataOpen();
-					Temp.Close();
-				}
+                    IsDummyFile = DataFile.StartsWith(DummyFileSign, StringComparison.InvariantCulture);
+                    if (IsDummyFile)
+                    {
+                        RandomSequence_ = RandomSequence.CreateRS(DataFile.Substring(1), MailSegment.RandomCacheStep);
+                        if (RandomSequence_ == null)
+                        {
+                            throw new Exception(RandomSequence.ErrorMsg);
+                        }
+                        DummyFileSize = RandomSequence.DummyFileSize;
+                    }
+                    else
+                    {
+                        FileStream Temp = DataOpen();
+                        Temp.Close();
+                    }
+                }
 			}
-			catch
+			catch (Exception e)
 			{
-				return false;
+                OpenError = e.Message;
+                return false;
 			}
 			try
 			{
@@ -152,9 +195,10 @@ namespace BackupToMail
 					Temp.Close();
 				}
 			}
-			catch
-			{
-				return false;
+            catch (Exception e)
+            {
+                OpenError = e.Message;
+                return false;
 			}
 			return true;
 		}
@@ -171,14 +215,23 @@ namespace BackupToMail
 				return 0;
 			}
 			Monitor.Enter(DataF_);
-			FileStream DataS = DataOpen();
-			long FileSize = DataS.Length;
-			SegmentCount = (int)(FileSize / SegmentSizeL);
+            long FileSize;
+            if (IsDummyFile)
+            {
+                FileSize = DummyFileSize;
+            }
+            else
+            {
+                FileStream DataS = DataOpen();
+                FileSize = DataS.Length;
+                DataS.Close();
+            }
+            FileSize__ = FileSize;
+            SegmentCount = (int)(FileSize / SegmentSizeL);
 			if ((FileSize % SegmentSizeL) > 0)
 			{
 				SegmentCount++;
 			}
-			DataS.Close();
 			Monitor.Exit(DataF_);
 			return SegmentCount;
 		}
@@ -364,18 +417,33 @@ namespace BackupToMail
 		public byte[] DataGet(int SegmentNo)
 		{
 			Monitor.Enter(DataF_);
-			FileStream DataS = DataOpen();
-			long SegmentOffset = SegmentNo;
-			SegmentOffset = SegmentOffset * SegmentSize;
-			long SegmentSize_ = DataS.Length - SegmentOffset;
-			if (SegmentSize_ > SegmentSize)
-			{
-				SegmentSize_ = SegmentSize;
-			}
-			byte[] SegmentData = new byte[SegmentSize_];
-    		DataS.Seek(SegmentOffset, SeekOrigin.Begin);
-    		DataS.Read(SegmentData, 0, (int)SegmentSize_);
-    		DataS.Close();
+            byte[] SegmentData;
+            if (IsDummyFile)
+            {
+                long SegmentOffset = SegmentNo;
+                SegmentOffset = SegmentOffset * SegmentSize;
+                long SegmentSize_ = DummyFileSize - SegmentOffset;
+                if (SegmentSize_ > SegmentSize)
+                {
+                    SegmentSize_ = SegmentSize;
+                }
+                SegmentData = RandomSequence_.GenSeq(SegmentOffset, SegmentSize_);
+            }
+            else
+            {
+                FileStream DataS = DataOpen();
+                long SegmentOffset = SegmentNo;
+                SegmentOffset = SegmentOffset * SegmentSize;
+                long SegmentSize_ = DataS.Length - SegmentOffset;
+                if (SegmentSize_ > SegmentSize)
+                {
+                    SegmentSize_ = SegmentSize;
+                }
+                SegmentData = new byte[SegmentSize_];
+                DataS.Seek(SegmentOffset, SeekOrigin.Begin);
+                DataS.Read(SegmentData, 0, (int)SegmentSize_);
+                DataS.Close();
+            }
 			Monitor.Exit(DataF_);
 			return SegmentData;
 		}
@@ -389,25 +457,29 @@ namespace BackupToMail
 		public void DataSet(int SegmentNo, byte[] SegmentData, int SegmentDataLength)
 		{
 			Monitor.Enter(DataF_);
-			FileStream DataS = DataOpen();
-			long SegmentOffset = SegmentNo;
-			SegmentOffset = SegmentOffset * SegmentSize;
-    		if (DataS.Length < SegmentOffset)
-    		{
-    			DataS.Seek(0, SeekOrigin.End);
-        		while (DataS.Length < SegmentOffset)
-        		{
-        			DataS.Write(Dummy, 0, SegmentSize);
-        		}
-    		}
-    		if (SegmentCount <= SegmentNo)
-    		{
-    			SegmentCount = SegmentNo + 1;
-    		}
-    		DataS.Seek(SegmentOffset, SeekOrigin.Begin);
-			DataS.Write(SegmentData, 0, SegmentDataLength);
-    		DataS.Close();
-			Monitor.Exit(DataF_);
+            if (!IsDummyFile)
+            {
+                FileStream DataS = DataOpen();
+                long SegmentOffset = SegmentNo;
+                SegmentOffset = SegmentOffset * SegmentSize;
+                if (DataS.Length < SegmentOffset)
+                {
+                    DataS.Seek(0, SeekOrigin.End);
+                    while (DataS.Length < SegmentOffset)
+                    {
+                        DataS.Write(Dummy, 0, SegmentSize);
+                    }
+                }
+                if (SegmentCount <= SegmentNo)
+                {
+                    SegmentCount = SegmentNo + 1;
+                }
+                DataS.Seek(SegmentOffset, SeekOrigin.Begin);
+                DataS.Write(SegmentData, 0, SegmentDataLength);
+                FileSize__ = DataS.Length;
+                DataS.Close();
+            }
+            Monitor.Exit(DataF_);
 		}
 		
 		/// <summary>

@@ -20,7 +20,8 @@ namespace BackupToMail
 	/// </summary>
 	public class MailAccount
 	{
-		public int DownloadMin_ = 0;
+        public bool DeleteIdx = false;
+        public int DownloadMin_ = 0;
 		public int DownloadMax_ = 0;
 		public int DownloadMin = 0;
 		public int DownloadMax = 0;
@@ -62,8 +63,9 @@ namespace BackupToMail
 			ImapSsl = Cfg.ParamGetB("Mail" + Idx + "ImapSsl");
 			Pop3Use = Cfg.ParamGetB("Mail" + Idx + "Pop3Use");
 			SmtpConnect = Cfg.ParamGetB("Mail" + Idx + "SmtpConnect");
-			
-			if (Address != "")
+            DeleteIdx = Cfg.ParamGetB("Mail" + Idx + "DeleteIdx");
+
+            if (Address != "")
 			{
 				return true;
 			}
@@ -85,8 +87,15 @@ namespace BackupToMail
 			Console.Write("SMTP: " + SmtpHost + ":" + SmtpPort + (SmtpSsl ? " with SSL" : " without SSL"));
 			if (TestConn)
 			{
-				Console.Write(" - ");
-				Console.WriteLine(SmtpClient_Test());
+				if ((SmtpHost != "") && (SmtpPort > 0))
+				{
+					Console.Write(" - ");
+					Console.WriteLine(SmtpClient_Test());
+				}
+				else
+				{
+					Console.WriteLine();
+				}
 			}
 			else
 			{
@@ -95,7 +104,7 @@ namespace BackupToMail
 			Console.Write("IMAP: " + ImapHost + ":" + ImapPort + (ImapSsl ? " with SSL" : " without SSL"));
 			if (TestConn)
 			{
-				if (!Pop3Use)
+				if ((ImapHost != "") && (ImapPort > 0))
 				{
 					Console.Write(" - ");
 					Console.WriteLine(ImapClient_Test());
@@ -112,7 +121,7 @@ namespace BackupToMail
 			Console.Write("POP3: " + Pop3Host + ":" + Pop3Port + (Pop3Ssl ? " with SSL" : " without SSL"));
 			if (TestConn)
 			{
-				if (Pop3Use)
+				if ((Pop3Host != "") && (Pop3Port > 0))
 				{
 					Console.Write(" - ");
 					Console.WriteLine(Pop3Client_Test());
@@ -135,7 +144,8 @@ namespace BackupToMail
 			{
 				Console.WriteLine("Download through: IMAP");
 			}
-		}
+            Console.WriteLine("Decrease index and count after deletion: " + DeleteIdx);
+        }
 		
 		/// <summary>
 		/// Checks if SMTP server needs to be connected
@@ -214,12 +224,14 @@ namespace BackupToMail
 			{
 				try
 				{
+					int Msg = -1;
 					using(ImapClient ImapClient__ = ImapClient_(cancel, false))
 					{
+						Msg = ImapClient__.Inbox.Count;
 						ImapClient__.Inbox.Close();
 						ImapClient__.Disconnect(true, cancel.Token);
 					}
-					return "OK";
+					return "OK (" + Msg + " messages)";
 				}
 				catch (Exception e)
 				{
@@ -238,11 +250,13 @@ namespace BackupToMail
 			{
 				try
 				{
+					int Msg = -1;
 					using(Pop3Client Pop3Client__ = Pop3Client_(cancel))
 					{
+						Msg = Pop3Client__.Count;
 						Pop3Client__.Disconnect(true, cancel.Token);
 					}
-					return "OK";
+					return "OK (" + Msg + " messages)";
 				}
 				catch (Exception e)
 				{
