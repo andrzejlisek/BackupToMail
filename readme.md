@@ -26,8 +26,11 @@ The general settings in **Config\.txt** file are following:
 * **DefaultSegmentType** \- Segment type when segment type is not specified in upload command \(default 0\)\.
 * **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default 16777216 = 16MB\)\.
 * **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default 4096\)\.
+* **LogFile** \- If set, the transfer information \(uploading and downloading segments\) will be recorded into the file\.
+* **UploadGroupChange** \- Number of upload errors, after which the grooup of sending mailboxes will be changed to the nest group \(default 5\)\.
+* **RandomCacheStepBits** \- Number of bits to specify caching period in generating the dummy file contents \(default 25, which means 32MB\)\.
 
-When certain parameter is not set or has incorrect value, the default value will be used\.
+When parameter is not set or has incorrect value, the default value will be used\.
 
 ## Account configuration
 
@@ -48,8 +51,9 @@ The parameters for account 0 are following:
 * **Mail0Pop3Host** \- POP3 host address\.
 * **Mail0Pop3Port** \- POP3 port number\.
 * **Mail0Pop3Ssl \(0/1\)** \- SSL usage on POP3 connection\.
-* **Mail0Pop3Use \(0/1\)** \- Use POP3 instead of IMAP when download\.
-* **Mail0SmtpConnect \(0/1\)** \- Connect to SMTP server of this account directly before sending mail and disconnect after mail sending\.
+* **Mail0Pop3Use \(0/1\)** \- Use POP3 instead of IMAP when download\. In is recommended to use IMAP protocol, but in some mailboxex POP3 can be more reliable\.
+* **Mail0SmtpConnect \(0/1\)** \- Connect to SMTP server of this account directly before sending mail and disconnect after mail sending\. It can solve problems, which exists while sending several messages during one connection or if there is problem with reaining SMTP connection\.
+* **Mail0DeleteIdx \(0/1\)** \- Delete index after deleting message\. Some mailboxes may delete item from index immediatelly after marking a message to delete, the other mailboxes may not delete item from index even if IMAP protocol us used\. Usually, the item is not deleted immediatelly after deleting message, the index is valid until disconnect from the mailbox\. You have to experimentally detech, which valued of the setting is appropriate for certain mailbox\.
 
 The parameters indicated as **0/1** can have only **0** \(false\) or **1** \(true\) value\. The default value \(if parameter is not provided\) is **0**\. The account 1 has the same parameters, but with **Mail1** prefix istead of **Mail0** prefix\. Configuration is loaded as iterated loop while **Mail\_Address** is not blank\. If ypu define account 0, account 1 and account 3, ommiting account 2, the BackupToMail will load configuration for account 0 and account 1 only\.
 
@@ -133,7 +137,7 @@ To upload file, you have to run BackupToMail with the following parameters, the 
 2. **Item name** \- Item name \(identifier\) used on account \(it not must be the same as file name\)\.
 3. **Data file path and name** \- Path and name of file, which you want to upload\.
 4. **Map file path and name** \- Path and name of file, which you want to upload\.
-5. **Source account list** \- List of source accounts, which will be used to send messages\.
+5. **Source account list** \- List of source accounts, which will be used to send messages\. You can use the **\.\.** in account list to separate the account groups\.
 6. **Destination account list** \- List of destination accounts, which will be used provide message reipts into **To** field\.
 7. **Segment size** \- The size of on segment other than default\.
 8. **Segment type** \- The segment type other than default \(you can not provide segment type without providing segment size\), using one of the numbers:
@@ -151,10 +155,16 @@ Upload **file\.zip** with use **file\.map** as **File** from accounts 1 and 2 to
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3
 ```
 
-Upload the same file using the same account with provide 1000 image width and 1000000 bytes segment length:
+Upload the same file using the same accounts with provide 1000 image width and 1000000 bytes segment length:
 
 ```
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 1000000 1 1000
+```
+
+Upload the same file using four accounts in two groups to store in account 0:
+
+```
+BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 0,1,..,2,3 0
 ```
 
 Upload **file with spaces\.zip** with use **file with spaces\.map** as **File** as Base64 encoded in message body from account 0 to account 0\.
@@ -171,11 +181,13 @@ BackupToMail will upload only this segments, which are provided to upload agains
 
 Before upload, all **1** occurences in the map file will be replaced with **2**\.
 
-The number of segments of whole file ic calculated based on data file size and one segment size\. The upload loop is iterated on all segments with printing informaton, which segment will be uploaded\. If there are found the same number of segments to uploads as number of upload threads, the application will assign source account to every segment to upload and the segments will be uploaded simultaneously in separate threads \(the one attemp will take place\)\. The time of preparing and sending mails will be measured and after upload attemps all segments, there will be printed upload speed based on successfully uploaded segments\.
+The number of segments of whole file is calculated based on data file size and one segment size\. The upload loop is iterated on all segments with printing informaton, which segment will be uploaded\. If there are found the same number of segments to uploads as number of upload threads, the application will assign source account to every segment to upload and the segments will be uploaded simultaneously in separate threads \(the one attemp will take place\)\. The time of preparing and sending mails will be measured and after upload attemps all segments, there will be printed upload speed based on successfully uploaded segments\.
 
-While every segment of the threads upload failed, the application will change source account assignment and repeat upload attemp\. If some of all segments was uploaded, there will be read only as number of the segments as number of threads subtracted with number of upload failed segments\. Every failed upload will cause upload attemp repeat \(with changing source account assignment\) until such segment will be successfully uploaded\. If none of account is available due to reach sending limits or internet connection break, this uploading attemps will repeaded infinitely, until sending limits on account is reset and internet connection is recovered\. 
+While every segment of the threads upload failed, the application will change source account assignment from the same group and repeat upload attemp\. If some of all segments was uploaded, there will be read only as number of the segments as number of threads subtracted with number of upload failed segments\. Every failed upload will cause upload attemp repeat \(with changing source account assignment from the same group\) until such segment will be successfully uploaded\.
 
-After iteration of last segment, there will be performed uploading all not uploaded segment by the same way as uploading segment during iteration through segments\. It is no possible, that this action is end before uploading all segments\. Eventually, you can break this action by killing the BackupToMail process, the uploaded segments already will be denoted as **1** character in map file\.\.
+The account group will be changed after certain number of failures in serie, which is specified as **UploadGroupChange** value \(if not specified, the default is 5\)\. If none of account is available due to reach sending limits or internet connection break, this uploading attemps will repeaded infinitely, until sending limits on account is reset in at least of one account and internet connection is recovered\. Grouping the sending account may reduce the upload transfer obstruction caused by transfer limit per account\. Such limit exists very often in the free of charge mailboxes and are specified as certain number of messages per one hour or one day\.
+
+After iteration of last segment, there will be performed uploading all not uploaded segment by the same way as uploading segment during iteration through segments\. It is no possible, that this action is end before uploading all segments\. Eventually, you can break this action by killing the BackupToMail process, the uploaded segments already will be denoted as **1** character in map file\.
 
 # Downloading or checking file
 
@@ -196,7 +208,7 @@ To download or check file, you have to run BackupToMail with the following param
   * **1** \- Check existence without body control\.
   * **2** \- Check existence with body control\.
   * **3** \- Compare with header digest\.
-  * **4** \- Compare with body contentx\.
+  * **4** \- Compare with body contents\.
 7. **Delete option list** \- List of values separated by commas, which indicates, which messages must be deleted \(additionaly with download/check action\):
   * **0** \- None\.
   * **1** \- Bad\.
@@ -414,5 +426,113 @@ The message is similar to PNG image attachment, but the attachment is not a regu
 ## PNG image embedded in HTML body specification
 
 The message is similar to PNG image attachment, but the message does not contain an attachment\. The message consists of HTML body, where the image is embedded in HTML content\. Embedding image in HTML code complies HTML specification, but some e\-mail applications may not display image\.
+
+# Dummy file
+
+For the test purposes, you can use the dummy file, which is not real disk file, but it acts as same as real disk file in exception of that this file is read\-only and attempt to save to this file does not raise error\. It can be use to test transfer or store very large files without generating the real file on the disk\. The content of the file is computed by simple generators, in most cases the content are similar to pseudo\-random values\. To use dummy file, input dummy file parameters in place of the data file name\. The map file name cannot be replaced by dummy file\. The file name definition consists of the **\*** sign and has a serie of numbers separated by commas\. The parameters followed by **\*** means as following:
+
+
+1. **File size** \- file size in bytes\.
+2. **Generator type** \- 0 \- Linear congruential, 1 \- Fibonacci
+3. **Number of bits** \- allowed values are 1, 2, 4 and 8, there is a number of least significant bits of state value, which are used to generate byte value\.
+4. **A constant** \- vaue used in generator\.
+5. **B constant** \- vaue used in generator\.
+6. **M constant** \- vaue used in generator\.
+7. **Initial vector** \- the vector values are the further parameters, for exaple if vector consists of 3 values, the generator has totally 9 parameters\.
+
+Examples of upload 500MB dummy file and check if the file is complete and correctly uploaded:
+
+```
+BackupToMail.exe UPLOAD "TestItem" "*500000000,1,8,3,1,257,7,16,5" "TestItem.txt" 0 0
+BackupToMail.exe DOWNLOAD "TestItem" "*500000000,1,8,3,1,257,7,16,5" "TestItem.txt" 0 4 0
+```
+
+You can use one of two generators, which may differs in speed and similarity to random values\. The **number of bits** beans as following:
+
+
+* 1 \- use one least significant bit, use 8 values to generate one byte\.
+* 2 \- use two least significant bits, use 4 values to generate one byte\.
+* 4 \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
+* 8 \- use whole value modulo by 256, as one byte\.
+
+For example, to create whole dummy file having 1000 bytes length, when **number of bits** is specified to 2, there will be generated 4000 values and sequence of foru values will be used to generate one byte\.The values can be generated sequentially only\. There is a reason, why the generator uses cache, which stores generator state periodically during generating values of contents\. Using the cache, generator does not have to generate values from beginning to generate file segment other than the first segment\. In the gereal settings, there is the **RandomCacheStepBits** parameter, which defines the caching period by number of bits\. If you set 25 \(default value\), the generator state will be store between every 33554432 \(32M\) values\. It is recommended to set the bits to get the value between quarter segment size and double segment size but the recommendation applying is not mandatory\. 
+
+Using the dummy file, you can test some features without managing large files, such as:
+
+
+* Upload and download speed\.
+* Transfer obstruction possibility due to mailbox limitations\.
+* Reliability of large fire storeage\.
+
+## Linear congruential generator
+
+There is very simple generator\. The sequence period substantially depends on the A, B and M values\. Initial vector has always one value and the value is the initial state \(S0\)\. The next value is calculated using the following formula:
+
+```
+S[n] = (A * S[n-1] + B) mod M
+```
+
+Example for 1MB dummy file A=2, B=10, M=125, S=6 using 4 bits of number: `*1048576,0,4,2,10,125,6`
+
+## Fibonacci generator
+
+The generator derives from Fibonacci sequence\. Initial vector must have as number of values as the greather value from \{A, B\} set\. The next state value is calculated using the following formula:
+
+```
+S[n] = (S[n-A] + S[n-B]) mod M
+```
+
+The first value in the vector will be forgotten, but the last value will be saved nest to the formerly last value in the vector, so the vector size does not change during calculating values, but the vector stores always last values\.
+
+Example for 1MB dummy file A=3, B=1, M=17, S=\(7,16,5\) using 4 bits of number: `*1048576,1,4,3,1,17,7,16,5`
+
+## Create disk file
+
+You can create real disk file,which has content the same as dummy file\. To do this, use the FILE command, for example:
+
+```
+BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000
+```
+
+You can use the `BATCHFILE` or `FILEBATCH` to create file without confirmation\. The last parameters \(`10000000` in example\) is the segment size used to display file creation progress\. This parameter can be ommited and there will be used default segment size\. Using this function, you can check the get acquainted with the dummy file content\.
+
+# Log file
+
+The upload and download operations can be logged to file\. To enable this feature, set the **LogFile** parameter to valid file name in **Config\.txt** configuration file\.
+
+In the log file, BackupToMail will log every upload or download action\. In the file there will be saved the following informations:
+
+
+1. Before action \- type of action and action informations such as file names and mail accounts\.
+2. During action \- amount of uploaded or downloaded data during time\.
+3. After action \- information abount success, transfer time, average transfer rate\.
+
+The log file is not open always during working\. Application opens log file, adds the informatin, after this closes the log file\. If the BackupToMail will be broken suddenly \(for example, due to accidentally process killing\), the file will contain the last logged contents\.
+
+## Transfer information
+
+The detailed action progress informations will not stored into log file\. Instead of, there will be stored only summary of transfered data after every ending all transfer threads\. This information will have a table form and you should import/paste this text into any spreadsheet application\. The information will not generated, when you perform any checking or deleting file without downloading \(for example check the file existence based on the messahe headers only\)\.
+
+The table will have the following columns:
+
+
+1. **Time stamp** \- Current action time as number of millisecond from action start moment\.
+2. **Uploaded or downloaded segments since previous entry** \- Number of segments, which was transfered after previous table entry\.
+3. **Totally uploaded or downloaded segments** \- Total number of segments, which was transfered since action was began\.
+4. **All segments** \- Total number of segments of file\.
+5. **Uploaded or downloaded bytes since previous entry** \- Number of bytes, which was transfered after previous table entry\.
+6. **Totally uploaded or downloaded bytes** \- Total number of bytes, which was transfered since action was began\.
+7. **All bytes by segment count** \- All bytes to transfer based on number of segment, it will be greater than real file size, because usually the size of last segment is less than the size of each segment other than last\.
+8. **All bytes by file size** \- All bytes to transfer based on the current data file size\. When uploading or comparing with file, the value meets the file size\. When downloading, the file size is less than whole file size, because one segment has not the information about file size\. In such case, the all bytes value will increase during downloading segment by segment\. It will meet the real file size after downloading the last file segment\.
+
+The table is intended to easy detect transfer obstruction due to internet connection break or mailbox send limits during uploading\. To visualize transfer, you can make graph, which presents the number of transfered segments or bytes during time\.
+
+For exaple, using your spreadsheet application, create the chart consisting using the **Time stamp** as values of X\-axis and **Totally uploaded or downloaded segments** as Y\-axis\. It is recommended to draw the plots connected by lines\. If no transfer obstrucion was occured, the chart will have constantly increasing trend\. Othervise, each transfer obstruction will be presented as constant trent on the chart\.
+
+## Action details and error messages
+
+The log file will not contain the action details in time, including mailbox error messages, which are printed on the console\. To store such data, you have to redirect BackupToMail standard output to file using operating system facilities\.
+
+
 
 
