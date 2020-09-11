@@ -9,6 +9,22 @@ namespace BackupToMail
             return null;
         }
 
+        public ulong[] Stats = null;
+
+        public bool StatsEnabled = false;
+
+        public void StatsReset()
+        {
+            if (Stats == null)
+            {
+                Stats = new ulong[256];
+            }
+            for (int i = 0; i < 256; i++)
+            {
+                Stats[i] = 0;
+            }
+        }
+
         public static long DummyFileSize = 0;
         public static string ErrorMsg = "";
         public static RandomSequence CreateRS(string Params, int RandomCacheStep)

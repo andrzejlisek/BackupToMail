@@ -486,6 +486,11 @@ namespace BackupToMail
             // Create file
             if (((ProgMode == 4) || (ProgMode == 14)) && (args.Length >= 3))
             {
+                int CreateStats = 0;
+                int CreatePeriod = 0;
+
+                long DummyFileSize = 0;
+
                 string DummyName = args[1];
                 string FileName = args[2];
                 long DummySegmentSize = 0;
@@ -497,9 +502,39 @@ namespace BackupToMail
                 {
                     DummySegmentSize = MailSegment.DefaultSegmentSize;
                 }
+                if (args.Length > 4)
+                {
+                    CreateStats = StrToInt(args[4]);
+                    if ((CreateStats < 0) || (CreateStats > 3))
+                    {
+                        CreateStats = 0;
+                    }
+                }
+                if (args.Length > 5)
+                {
+                    CreatePeriod = StrToInt(args[5]);
+                    if ((CreatePeriod < 0) || (CreatePeriod > 3))
+                    {
+                        CreatePeriod = 0;
+                    }
+                }
                 Console.WriteLine("Dummy file: " + DummyName);
                 Console.WriteLine("Real file: " + FileName);
                 Console.WriteLine("Segment size: " + DummySegmentSize);
+                switch (CreateStats)
+                {
+                    case 0: Console.WriteLine("File distribution: None"); break;
+                    case 1: Console.WriteLine("File distribution: Simplified dist table"); break;
+                    case 2: Console.WriteLine("File distribution: Value list with zeros"); break;
+                    case 3: Console.WriteLine("File distribution: Value list without zeros"); break;
+                }
+                switch (CreatePeriod)
+                {
+                    case 0: Console.WriteLine("Search period: None"); break;
+                    case 1: Console.WriteLine("Search period: Simplified dist table"); break;
+                    case 2: Console.WriteLine("Search period: Value list with zeros"); break;
+                    case 3: Console.WriteLine("Search period: Value list without zeros"); break;
+                }
                 Console.WriteLine();
 
                 bool Continue = true;
@@ -517,7 +552,7 @@ namespace BackupToMail
                         {
                             throw new Exception(RandomSequence.ErrorMsg);
                         }
-                        long DummyFileSize = RandomSequence.DummyFileSize;
+                        DummyFileSize = RandomSequence.DummyFileSize;
                         long SegmentI = 0;
                         long DispI = 1;
                         long DispL = DummyFileSize / DummySegmentSize;
@@ -538,6 +573,11 @@ namespace BackupToMail
                                     DummySegmentSize = (DummyFileSize - SegmentI);
                                 }
 
+                                if (CreateStats > 0)
+                                {
+                                    RandomSequence_.StatsEnabled = true;
+                                    RandomSequence_.StatsReset();
+                                }
                                 byte[] Raw = RandomSequence_.GenSeq(SegmentI, DummySegmentSize);
                                 FS_.Write(Raw, 0, (int)DummySegmentSize);
 
@@ -547,10 +587,158 @@ namespace BackupToMail
                             }
                             FS_.Close();
                             Console.WriteLine("File created in time: " + MailSegment.TimeHMSM(SW.Elapsed()));
+                            if (CreateStats > 0)
+                            {
+                                Console.WriteLine();
+                                DisplayStats("File distribution", RandomSequence_.Stats, CreateStats);
+                            }
                         }
                         catch (Exception e)
                         {
                             Console.WriteLine("File creation error: " + e.Message);
+                        }
+
+
+                        if (CreatePeriod > 0)
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine("Searching for sequence period");
+
+                            FileStream FS = new FileStream(FileName, FileMode.Open, FileAccess.Read);
+                            long PeriodBufferSize = DummySegmentSize;
+                            byte[] PeriodArray0 = new byte[PeriodBufferSize];
+                            byte[] PeriodArray1 = new byte[PeriodBufferSize];
+
+                            if (PeriodBufferSize > DummyFileSize)
+                            {
+                                PeriodBufferSize = (int)DummyFileSize;
+                            }
+
+                            long PeriodSize = 0;
+                            int PeriodChunks;
+                            int PeriodChunkOffset;
+                            long PeriodChunkSize;
+                            long PeriodChunkSize0;
+                            long PeriodFilePos;
+
+                            Stopwatch_ SW__ = new Stopwatch_();
+                            SW__.Reset();
+
+                            ulong[] PeriodStats = new ulong[256];
+                            for (int i = 0; i < 256; i++)
+                            {
+                                PeriodStats[i] = 0;
+                            }
+
+                            long WorkTime = 0;
+                            for (long i = 1; i < DummyFileSize; i++)
+                            {
+                                FS.Seek(i - 1, SeekOrigin.Begin);
+                                FS.Read(PeriodArray0, 0, 1);
+                                PeriodStats[PeriodArray0[0]]++;
+
+                                bool IsPeriodical = true;
+
+                                PeriodChunkSize = PeriodBufferSize;
+                                PeriodChunkSize0 = i;
+                                PeriodChunks = (int)(i / PeriodBufferSize);
+                                if ((i % PeriodBufferSize) > 0)
+                                {
+                                    PeriodChunks++;
+                                }
+
+                                int PeriodCount = (int)(DummyFileSize / i);
+                                if ((DummyFileSize % i) > 0)
+                                {
+                                    PeriodCount++;
+                                }
+
+                                PeriodChunkOffset = 0;
+                                for (int ii = 0; ii < PeriodChunks; ii++)
+                                {
+                                    PeriodFilePos = PeriodChunkOffset;
+
+                                    if (PeriodChunkSize > PeriodChunkSize0)
+                                    {
+                                        PeriodChunkSize = PeriodChunkSize0;
+                                    }
+
+                                    // Read the first period occurence and treat as pattern
+                                    FS.Seek(PeriodFilePos, SeekOrigin.Begin);
+                                    FS.Read(PeriodArray0, 0, (int)PeriodChunkSize);
+
+                                    int PeriodChunkSize__ = 0;
+                                    for (int iii = (PeriodCount - 2); iii >= 0; iii--)
+                                    {
+                                        PeriodFilePos += i;
+                                        PeriodChunkSize__ = (int)PeriodChunkSize;
+                                        if (iii == 0)
+                                        {
+                                            int FileRemain = (int)(DummyFileSize - PeriodFilePos);
+                                            if (PeriodChunkSize__ > FileRemain)
+                                            {
+                                                PeriodChunkSize__ = FileRemain;
+                                            }
+                                        }
+
+                                        // Read the period occurence other than first and compare with pattern,
+                                        // if doest match the pattern, the reading and comparing will be broken
+                                        if (PeriodChunkSize__ > 0)
+                                        {
+                                            FS.Seek(PeriodFilePos, SeekOrigin.Begin);
+                                            FS.Read(PeriodArray1, 0, (int)PeriodChunkSize);
+
+                                            for (int iiii = (PeriodChunkSize__ - 1); iiii >= 0; iiii--)
+                                            {
+                                                if (PeriodArray0[iiii] != PeriodArray1[iiii])
+                                                {
+                                                    IsPeriodical = false;
+
+                                                    // Break all check iteration if data has no period by length given by i
+                                                    ii = PeriodChunks;
+                                                    iii = (-1);
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        if (WorkTime < SW__.Elapsed())
+                                        {
+                                            while (WorkTime < SW__.Elapsed())
+                                            {
+                                                WorkTime += 1000L;
+                                            }
+                                            Console.WriteLine("Period " + i + "/" + DummyFileSize + " (" + (DummyFileSize > 0 ? (i * 100 / DummyFileSize) : 0) + "%); occurence " + (PeriodCount - iii - 1) + "/" + PeriodCount + " (" + (PeriodCount > 0 ? (((PeriodCount - iii - 1) * 100) / PeriodCount) : 0) + "%)");
+                                        }
+                                    }
+                                    PeriodChunkOffset += (int)PeriodChunkSize;
+
+                                    PeriodChunkSize0 -= PeriodChunkSize;
+
+                                }
+
+                                if (IsPeriodical)
+                                {
+                                    PeriodSize = i;
+                                    break;
+                                }
+                            }
+                            FS.Close();
+
+                            if (PeriodSize > 0)
+                            {
+                                Console.WriteLine("Sequence period length: " + PeriodSize);
+                                Console.WriteLine("Period search time: " + MailSegment.TimeHMSM(SW__.Elapsed()));
+                                Console.WriteLine();
+                                DisplayStats("Sequence period distribution", PeriodStats, CreatePeriod);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Sequence has no period");
+                                Console.WriteLine("Period search time: " + MailSegment.TimeHMSM(SW__.Elapsed()));
+                                Console.WriteLine();
+                            }
+
                         }
                     }
                 }
@@ -601,10 +789,115 @@ namespace BackupToMail
 				Console.WriteLine("BackupToMail TESTCONFIG <account list by commas>");
                 Console.WriteLine();
                 Console.WriteLine("Create file based on dummy file generator:");
-                Console.WriteLine("BackupToMail FILE <dummy file definition> <file name> <segment size>");
+                Console.WriteLine("BackupToMail FILE <dummy file definition> <file name>");
+                Console.WriteLine("[<segment size> <dist mode> <period mode>]");
+                Console.WriteLine("Dist mode and period modes possible values:");
+                Console.WriteLine(" 0 - None (default)");
+                Console.WriteLine(" 1 - Simplified dist table");
+                Console.WriteLine(" 2 - Value list with zeros");
+                Console.WriteLine(" 3 - Value list without zeros");
+                Console.WriteLine("Use BATCHFILE or FILEBATCH to ommit download confirmation.");
                 Console.WriteLine();
             }
             Console.WriteLine();
 		}
-	}
+
+    
+        public static void DisplayStats(string Msg, ulong[] StatData, int Mode)
+        {
+            ulong ValMax = 0;
+            ulong ValMin = ulong.MaxValue;
+            ulong ValMin0 = ulong.MaxValue;
+            ulong ValSum = 0;
+            ulong ValCount0 = 0;
+            for (int i = 0; i < 256; i++)
+            {
+                if (ValMin > StatData[i])
+                {
+                    ValMin = StatData[i];
+                }
+                if (StatData[i] > 0)
+                {
+                    ValCount0++;
+                    if (ValMin0 > StatData[i])
+                    {
+                        ValMin0 = StatData[i];
+                    }
+                }
+                if (ValMax < StatData[i])
+                {
+                    ValMax = StatData[i];
+                }
+                ValSum += StatData[i];
+            }
+
+            if (Mode == 1)
+            {
+                ulong GreatVal = ValMax / 10000UL;
+                uint[] Stat_ = new uint[256];
+                ulong ValD = 1;
+                if (GreatVal == 0)
+                {
+                    GreatVal = 1;
+                }
+                while (ValD < GreatVal)
+                {
+                    ValD = ValD * 10;
+                }
+                ulong ValDx = ValD / 10;
+                if (ValDx < 1)
+                {
+                    ValDx = 1;
+                }
+
+                Console.WriteLine(Msg + " n/" + ValD + ":");
+                for (int i = 0; i < 256; i++)
+                {
+                    Stat_[i] = (uint)(StatData[i] / ValD);
+                    if ((ValD > 1) && ((StatData[i] / ValDx) % 10) > 0)
+                    {
+                        if (Stat_[i] < 9999)
+                        {
+                            Stat_[i]++;
+                        }
+                    }
+
+                    Console.Write(Stat_[i].ToString().PadLeft(4, ' '));
+                    if (((i + 1) % 16) == 0)
+                    {
+                        Console.WriteLine();
+                    }
+                    else
+                    {
+                        Console.Write(" ");
+                    }
+                }
+            }
+            if ((Mode == 2) || (Mode == 3))
+            {
+                Console.WriteLine(Msg + ":");
+
+                int PadI = (int)(Math.Floor(Math.Log10(ValMax)) + 1);
+                for (int i = 0; i < 256; i++)
+                {
+                    if ((Mode == 2) || (StatData[i] > 0))
+                    {
+                        Console.Write(i.ToString().PadLeft(3, ' '));
+                        Console.Write(" - ");
+                        Console.Write(StatData[i].ToString().PadLeft(PadI, ' '));
+                        Console.WriteLine();
+                    }
+                }
+            }
+            Console.WriteLine("Minimum including 0: " + ValMin);
+            if (ValCount0 > 0)
+            {
+                Console.WriteLine("Minimum excluding 0: " + ValMin0);
+            }
+            Console.WriteLine("Maximum: " + ValMax);
+            Console.WriteLine("Sum: " + ValSum);
+            Console.WriteLine("Number of non-zeros: " + ValCount0);
+            Console.WriteLine("Number of zeros: " + (255 - ValCount0));
+        }
+    }
 }
