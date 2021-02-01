@@ -136,7 +136,7 @@ To upload file, you have to run BackupToMail with the following parameters, the 
 1. **UPLOAD word** \- Perform upload action\.
 2. **Item name** \- Item name \(identifier\) used on account \(it not must be the same as file name\)\.
 3. **Data file path and name** \- Path and name of file, which you want to upload\.
-4. **Map file path and name** \- Path and name of file, which you want to upload\.
+4. **Map file path and name** \- Path and name of file, which you want to upload\. You can use the blank name or **/** character as name to not use map file\.
 5. **Source account list** \- List of source accounts, which will be used to send messages\. You can use the **\.\.** in account list to separate the account groups\.
 6. **Destination account list** \- List of destination accounts, which will be used provide message reipts into **To** field\.
 7. **Segment size** \- The size of on segment other than default\.
@@ -149,7 +149,7 @@ To upload file, you have to run BackupToMail with the following parameters, the 
 
 If item name, data file name or map file name contains spaces, you have to provide this parameter in quotation signs like "file name with spaces"\. The source and destination account list can not contain a spaces\. Below, there are some examples:
 
-Upload **file\.zip** with use **file\.map** as **File** from accounts 1 and 2 to accounts 2 and 3, use default settings:
+Upload **file\.zip** using **file\.map** as map file, save item named as **File** from accounts 1 and 2 to accounts 2 and 3, use default settings:
 
 ```
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3
@@ -167,13 +167,23 @@ Upload the same file using four accounts in two groups to store in account 0:
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 0,1,..,2,3 0
 ```
 
-Upload **file with spaces\.zip** with use **file with spaces\.map** as **File** as Base64 encoded in message body from account 0 to account 0\.
+Upload **file\.zip** without map file, save item named as **File** from account 0 to account 0, use default settings:
+
+```
+BackupToMail UPLOAD File D:\docs\file.zip / 0 0
+```
+
+Upload **file\.zip** without map file, save item named as **File** from account 0 to account 0, use default settings \- alternative way:
+
+```
+BackupToMail UPLOAD File D:\docs\file.zip "" 0 0
+```
+
+Upload **file with spaces\.zip** using **file with spaces\.map** as map file, save item named as **File** as Base64 encoded in message body from account 0 to account 0\.
 
 ```
 BackupToMail UPLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 0 0 1000000 2
 ```
-
-After executing command, aplication will print action parameters as will be used, so you can check if command line parameters are correct\. You have to confirm action by entering one of the following \(case insensitive\): **1**, **T**, **Y**, **TRUE**, **YES**\. To ommit confirmation, use **BACHUPLOAD** or **UPLOADBATCH** instead of **UPLOAD** parameter\.
 
 ## Upload principle
 
@@ -201,14 +211,17 @@ To download or check file, you have to run BackupToMail with the following param
 1. **DOWNLOAD word** \- perform download or check action\.
 2. **Item name** \- Item name \(identifier\) used on account \(it not must be the same as file name\)\.
 3. **Data file path and name** \- Path and name of file, which you want to upload\.
-4. **Map file path and name** \- Path and name of file, which you want to upload\.
+4. **Map file path and name** \- Path and name of file, which you want to upload\. You can use the blank name or **/** character as name to not use map file\.
 5. **Source account list with item index intervals** \- Account list separated by commas, but pair of numbers separated by two dots \(**\.\.**\) or one number and two dots is interpreted as index interval filter \(see examples\)\.
 6. **Download or check mode** \- One of available modes, which uses the same principle \(some of this modes implies no whole message download\), the mode is a number from the following:
-  * **0** \- Download file \(default mode, whis is used, if this parameter is not specified\)\.
+  * **0** \- Download data file \(default mode, whis is used, if this parameter is not specified\)\.
   * **1** \- Check existence without body control\.
   * **2** \- Check existence with body control\.
-  * **3** \- Compare with header digest\.
-  * **4** \- Compare with body contents\.
+  * **3** \- Check the header digest using data file\.
+  * **4** \- Check the body contents using data file\.
+  * **5** \- Download digest file\.
+  * **6** \- Check the header digest using digest file\.
+  * **7** \- Check the body contents using digest file\.
 7. **Delete option list** \- List of values separated by commas, which indicates, which messages must be deleted \(additionaly with download/check action\):
   * **0** \- None\.
   * **1** \- Bad\.
@@ -222,82 +235,92 @@ If item name, data file name or map file name contains spaces, you have to provi
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1
+```
+
+Download **File** and save as **file\.zip** without map file from account 1 with reading all messages:
+
+```
+BackupToMail DOWNLOAD File D:\docs\file.zip / 1
+```
+
+Download **File** and save as **file\.zip** without map file from account 1 with reading all messages \- alternative way:
+
+```
+BackupToMail DOWNLOAD File D:\docs\file.zip "" 1
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from the first to 50:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,..50
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,..50
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to the last:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,30..
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to 50:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,30..50
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to 50, then account 3 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,30..50,2
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50,2
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages, then account 3 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,2
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to 50, then account 3 with reading messages from 20 to 40:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,30..50,2,20..40
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50,2,20..40
 ```
 
 Download **File** and save as **file with spaces\.zip** using **file with spaces\.map** as map file from account 1 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD file "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 1
+BackupToMail DOWNLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 1
 ```
 
 Check, if **File** item exists on account 1 with reading all messages, in this action data file name is not used:
 
 ```
-BackupToMail DOWNLOAD file dummy D:\docs\file.map 1 1
+BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 1
 ```
 
 Check, if **File** item exists on account 1 with reading all messages, delete bad and duplicate messages of this item, in this action data file name is not used:
 
 ```
-BackupToMail DOWNLOAD file dummy D:\docs\file.map 1 1 1,2
+BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 1 1,2
 ```
 
 Delete **File** item from account 1 and 2:
 
 ```
-BackupToMail DOWNLOAD file dummy D:\docs\file.map 1,2 1 3
+BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 1 3
 ```
 
 Download and delete **File** item from account 1 and 2:
 
 ```
-BackupToMail DOWNLOAD file D:\docs\file.zip D:\docs\file.map 1,2 0 3
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2 0 3
 ```
 
 Clear account 1 and 2:
 
 ```
-BackupToMail CHECK file dummy D:\docs\file.map 1,2 1 3,4,5
+BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 1 3,4,5
 ```
-
-After executing command, aplication will print action parameters as will be used, so you can check if command line parameters are correct\. You have to confirm action by entering one of the following \(case insensitive\): **1**, **T**, **Y**, **TRUE**, **YES**\. To ommit confirmation, use **BACHDOWNLOAD** or **DOWNLOADBATCH** instead of **DOWNLOAD** parameter\.
 
 ## Download principle
 
@@ -320,27 +343,73 @@ The time during downloading, from creating download threads to saving to file ea
 
 If internet connection lost or IMAP/POP3 server is temporally unavailable while header browsing, BackupToMail reconnects and decrements iteration index by 1 to repeat header browsing attemp of the same message\. The download is performed in separated threads and there will be done one attemp of download each message, which should be downloaded\. BackupToMail checks, that message index in every connection points to the same message\. If no, all connections will be reconnected like, in case of connection lost during message download and messade download attemp will be repeated\.
 
-If file is downloaded without deletion options, the download process ends immediately after download last missing segment\.
+If file is downloaded without deletion options, the download process ends immediately after download last missing segment\. You can download the digest file \(mode **5**\) instead of data file \(mode **0**\), thi data segments for the digest file will be downloaded exactly by the same way as download data file\.
+
+## Digest file
+
+Fo any data file, you can generate the digest file, which consists of digest for each data file segment\. The first 32 characters of digest file designes the file size and segment size, each occupies 16 bytes\. The further bytes are the segment digests, each consists of 32 characters\.
+
+To generate or check the digest file, you have provide the following parameters:
+
+
+1. **DIGEST word** \- generate or check the digest file\.
+2. **Mode** \- One of the following modes:
+  * **0** \- Create digest file based on data file\.
+  * **1** \- Check digest file against data file\.
+3. **Data file name** \- The name of data file, which will used to create or check the digest file
+4. **Digest file name** \- The name of the digest file\.
+5. **Segment size** \- The size of one data file segment\.
+
+The first four parameters are required and the fifth parameter is optional\. If the segment size is not provided or incorrect, there will be used the default segment size\.
+
+To create the digest **SomeArchive\.digest** of **SomeArchive\.zip** file using 1000000 segment size, you have to execute the following command:
+
+```
+BackupToMail DIGEST 0 SomeArchive.zip SomeArchive.digest 1000000
+```
+
+There will be displayed progress of digest creation\.
+
+To check the digest **SomeArchive\.digest** against the **SomeArchive\.zip** file using 1000000 segment size, you have to execute the following command:
+
+```
+BackupToMail DIGEST 1 SomeArchive.zip SomeArchive.digest 1000000
+```
+
+There will be displayed the following information:
+
+
+* Match of the data size and segment size stored in the digest file\.
+* Which digests matches the data file segments\.
+* Numbers of matched and mismatched segment digest\.
+
+The digest file can be used as data file substitute to chceck the completeness and correctness of uploaded data without the original data file, especially, when the data file is very large\. You can download the digest file \(mode **5**\) instead of data file \(mode **0**\), the digests will be generated based on the data file segments\.
 
 ## Checking file
 
-BackupToMail offers checking checking or correctness of uploaded file by four ways:
+BackupToMail offers checking completeness and correctness of uploaded file by six ways:
 
 
 * Check existence without body control\.
 * Check existence with body control\.
-* Compare with header digest\.
-* Compare with body contents\.
+* Check the header digest using data file\.
+* Check the body contents using data file\.
+* Check the header digest using digest file\.
+* Check the body contents using digest file\.
 
-The checking principle is the same as download principle and uses the same functionality\. There are difference comparing to download: 
+The checking principle is the same as download principle and uses the same functionality\. There are difference compared to download: 
 
 
 * Reading data file or no using data file instead of writing data file\.
 * Displaying check results\.
 * Process takes place to planned end, without breaking after checking all unchecked segments\.
-* Some check modes takes place bases on message headers instead of downloading whole message\.
+* Some check modes takes place based on message headers instead of downloading whole message \(the **1** or **3** or **6** download/check mode\)\.
 
-After checking, the transfer speed is displayes only for downloaded data bytes, while you perform the check mode, which requires download data\. The header data is not encountered to downloaded bytes\.Check existence without body controlThere is the simpliest check type, it nos uses the data file name \(this parameter is ignored, although it must be provided\)\. BackupToMail researches headers of all messages, which matches to requested item name, like download action\. After find some file segment, application knowns the number of file segments\. This option can detect the following things: 
+After checking, the transfer speed is displayes only for downloaded data bytes, while you perform the check mode, which requires download data\. The header data is not encountered to downloaded bytes\.
+
+### Check existence without body control
+
+There is the simpliest check type, it nos uses the data file name \(this parameter is ignored, although it must be provided\)\. BackupToMail researches headers of all messages, which matches to requested item name, like download action\. After find some file segment, application knowns the number of file segments\. This option can detect the following things: 
 
 
 * Existence of some segments of requested file\.
@@ -349,19 +418,27 @@ After checking, the transfer speed is displayes only for downloaded data bytes, 
 * Equality of number of segments in header of each existing segment \(the first found segment determines the correct number\)\.
 * Equality of nominal segment size in header of each existing segment \(the first found segment determines the correct size\)\.
 
-Thich checks does not download segments and is also useful to deletion messages\.Check existence with body controlThe check type is similar to **Check existence without body control**, but additionally downloads segment\. This can detect the same things as above and additionally the following things: 
+Thich checks does not download segments and is also useful to deletion messages\.
+
+### Check existence with body control
+
+The check type is similar to **Check existence without body control**, but additionally downloads segment\. This can detect the same things as above and additionally the following things: 
 
 
 * The message contains readable segment bytes and is useful to download segment\.
 * Compares real segment digest to digest provided in header\.
 
-The check mode is very similar to download, the only difference is no saving the downloaded data\.Compare with header digestThis mode reads data from provided local data file name and calculates the digest based on the file for every correct message, withoud browsing body or attachment\. The calculated digest is compared with digest from header and if the digest differs, this messages is treated as bad\.This mode does not download segments from messages, it can detect: 
+The check mode is very similar to download, the only difference is no saving the downloaded data\.
+
+### Check the header digest
+
+This mode reads data from provided local data file or digest name and generates the digest based on the file for every correct message, without browsing body or attachment\. The generated digest is compared with digest from header and if the digest differs, this messages is treated as bad\. This mode does not download segments from messages, it can detect: 
 
 
 * Corrupted and incorrect messages\.
 * Difference between local file contents and message contents by assuming that message content digest equals to digest saved in message header\.
 
-Compare with body contents like **Compare with header digest**, this mode also reads the local file, but downloads segment from body \(attachment or text\) and compares the downloaded segment with the same segment from local file\. If differs, this message is bad\. 
+Check the body contents like **Check the header digest**, this mode also reads the local data file or digest file, but downloads segment from body \(attachment or text\) and compares the downloaded segment with the same segment from local data file or generates the digest of the downloaded segment and compares with the digest from the digest file\. If differs, this message is bad\. 
 
 ## Deleting messages
 
@@ -495,6 +572,48 @@ BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000
 ```
 
 You can use the `BATCHFILE` or `FILEBATCH` to create file without confirmation\. The last parameters \(`10000000` in example\) is the segment size used to display file creation progress\. This parameter can be ommited and there will be used default segment size\. Using this function, you can check the get acquainted with the dummy file content\.
+
+## Period and statistics
+
+Both described generators generates bytes in period, which in many cases can be short, depending on input parameters \(dummy file definition\)\. You can use file creating to get statistics\. To do this, you can add two additional parameters, which are numbers\. The first of these is generating file distribution, the second is calculating period length and period distribution\.
+
+Both parameters may have on of possible values:
+
+
+* **0 \- None** \- do not create statistics\.
+* **1 \- Simplified dist table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+* **2 \- Value list with zeros** \- print count of each value including zeros\.
+* **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+
+The period calculation may take a long of time depending on file size\. The progress is displayed by **period** and **occurence** values\. The algorithm tests if file contains the period of given size, begins from 1 and ends either if period found or if tested period size reach the file size\. Within testing one period length value, program checks all occurences if the maches the first occurence\. If any occurence does not match the first occurence, the further occurences will not be tested The progress will be displayed every 1 second using timer\.
+
+Example to create file with display simple table with file distribution and period calculation with display period distribution using detailed list without zeros:
+
+```
+BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000 1 2
+```
+
+# Batch operations
+
+The following operations displays the operation parameters and waits for the confirmation by user\. The operations are following:
+
+
+* **UPLOAD** \- Uploading the file\.
+* **DOWNLOAD** \- Downloading or cheching the file\.
+* **DIGEST** \- Generating or cheching the digest file\.
+* **FILE** \- Generating the data file based on dummy file parameters\.
+
+If you execute one of the mentioned operations, there will be displayed the question **Do you want to continue \(Yes/No\)**\. If you write one of the following answers \(letter case is not important\), there will be interpreted as **Yes**: **1**, **T**, **TRUE**, **Y**, **YES**\. Other answer will be interpreted as **No**\.
+
+You can ommit the confirmation if you add the BATCH word to operation word ass following:
+
+
+* **UPLOADBATCH** or **BATCHUPLOAD**
+* **DOWNLOADBATCH** or **BATCHDOWNLOAD**
+* **DIGESTBATCH** or **BATCHDIGEST**
+* **FILEBATCH** or **BATCHFILE**
+
+This approach is very usable, when you want to run the BackupToMail from the script or batch file many times \(for example, to upload or download many files\)\.
 
 # Log file
 

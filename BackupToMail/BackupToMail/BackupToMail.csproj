@@ -86,6 +86,7 @@
     <Compile Include="RandomSequenceFib.cs" />
     <Compile Include="RandomSequence.cs" />
     <Compile Include="RandomSequenceLCG.cs" />
+    <Compile Include="DigestFile.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

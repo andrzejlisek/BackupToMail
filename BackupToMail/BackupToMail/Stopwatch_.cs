@@ -10,28 +10,28 @@ using System;
 
 namespace BackupToMail
 {
-	/// <summary>
-	/// Time measurement object similar to always running stopwatch
-	/// </summary>
-	public class Stopwatch_
-	{
-		// Environment.TickCount, DateTime.UtcNow or Stopwatch
-		
-		DateTime ResetTime;
-		
-		public void Reset()
-		{
-			ResetTime = DateTime.UtcNow;
-		}
-		
-		public long Elapsed()
-		{
-			return (long)((DateTime.UtcNow - ResetTime).TotalMilliseconds);
-		}
+    /// <summary>
+    /// Time measurement object similar to always running stopwatch
+    /// </summary>
+    public class Stopwatch_
+    {
+        // Environment.TickCount, DateTime.UtcNow or Stopwatch
+        
+        DateTime ResetTime;
+        
+        public void Reset()
+        {
+            ResetTime = DateTime.UtcNow;
+        }
+        
+        public long Elapsed()
+        {
+            return (long)((DateTime.UtcNow - ResetTime).TotalMilliseconds);
+        }
 
-		public Stopwatch_()
-		{
-			Reset();
-		}
-	}
+        public Stopwatch_()
+        {
+            Reset();
+        }
+    }
 }
