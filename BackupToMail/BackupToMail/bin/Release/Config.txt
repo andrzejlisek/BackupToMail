@@ -4,7 +4,7 @@ DefaultSegmentType=0
 DefaultSegmentSize=16777216
 DefaultImageSize=4096
 
-Mail0Address=userlogin@server1.com
+Mail0Address=user@server1.com
 Mail0Login=user
 Mail0Password=password
 Mail0SmtpHost=smtp.server1.com
