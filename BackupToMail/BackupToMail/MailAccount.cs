@@ -74,18 +74,45 @@ namespace BackupToMail
                 return false;
             }
         }
-        
+
+        public void PrintConnTest(int AccNo)
+        {
+            string Prefix = "Account " + AccNo.ToString() + ": ";
+            if ((SmtpHost != "") && (SmtpPort > 0))
+            {
+                Console.Write(Prefix + "SMTP - ");
+                Console.WriteLine(SmtpClient_Test());
+            }
+            if ((ImapHost != "") && (ImapPort > 0))
+            {
+                Console.Write(Prefix + "IMAP - ");
+                Console.WriteLine(ImapClient_Test());
+            }
+            if ((Pop3Host != "") && (Pop3Port > 0))
+            {
+                Console.Write(Prefix + "POP3 - ");
+                Console.WriteLine(Pop3Client_Test());
+            }
+        }
+
         /// <summary>
         /// Print account information on the console
         /// </summary>
         /// <param name="TestConn"></param>
-        public void PrintInfo(bool TestConn)
+        public void PrintInfo(int TestConn)
         {
             Console.WriteLine("E-mail: " + Address);
             Console.WriteLine("Logn: " + Login);
             Console.WriteLine("Password: " + Password);
-            Console.Write("SMTP: " + SmtpHost + ":" + SmtpPort + (SmtpSsl ? " with SSL" : " without SSL"));
-            if (TestConn)
+            if ((SmtpHost != "") && (SmtpPort > 0))
+            {
+                Console.Write("SMTP: " + SmtpHost + ":" + SmtpPort + (SmtpSsl ? " with SSL" : " without SSL"));
+            }
+            else
+            {
+                Console.Write("SMTP: not specified");
+            }
+            if (TestConn != 0)
             {
                 if ((SmtpHost != "") && (SmtpPort > 0))
                 {
@@ -101,8 +128,15 @@ namespace BackupToMail
             {
                 Console.WriteLine();
             }
-            Console.Write("IMAP: " + ImapHost + ":" + ImapPort + (ImapSsl ? " with SSL" : " without SSL"));
-            if (TestConn)
+            if ((ImapHost != "") && (ImapPort > 0))
+            {
+                Console.Write("IMAP: " + ImapHost + ":" + ImapPort + (ImapSsl ? " with SSL" : " without SSL"));
+            }
+            else
+            {
+                Console.Write("IMAP: not specified");
+            }
+            if (TestConn != 0)
             {
                 if ((ImapHost != "") && (ImapPort > 0))
                 {
@@ -118,8 +152,15 @@ namespace BackupToMail
             {
                 Console.WriteLine();
             }
-            Console.Write("POP3: " + Pop3Host + ":" + Pop3Port + (Pop3Ssl ? " with SSL" : " without SSL"));
-            if (TestConn)
+            if ((Pop3Host != "") && (Pop3Port > 0))
+            {
+                Console.Write("POP3: " + Pop3Host + ":" + Pop3Port + (Pop3Ssl ? " with SSL" : " without SSL"));
+            }
+            else
+            {
+                Console.Write("POP3: not specified");
+            }
+            if (TestConn != 0)
             {
                 if ((Pop3Host != "") && (Pop3Port > 0))
                 {

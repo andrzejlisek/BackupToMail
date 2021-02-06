@@ -64,13 +64,16 @@
     <Reference Include="System.Xml.Linq">
     </Reference>
     <Reference Include="BouncyCastle.Crypto">
-      <HintPath>..\..\Lib\BouncyCastle\bccrypto-csharp-1.8.7-bin\BouncyCastle.Crypto.dll</HintPath>
+      <HintPath>..\..\Lib\BouncyCastle\bccrypto-csharp-1.8.9-bin\BouncyCastle.Crypto.dll</HintPath>
     </Reference>
     <Reference Include="MailKit">
-      <HintPath>..\..\Lib\MailMime\20200820\mailkit.2.8.0\lib\net45\MailKit.dll</HintPath>
+      <HintPath>..\..\Lib\MailMime\20210101\mailkit.2.10.1\lib\net45\MailKit.dll</HintPath>
     </Reference>
     <Reference Include="MimeKit">
-      <HintPath>..\..\Lib\MailMime\20200820\mimekit.2.9.1\lib\net45\MimeKit.dll</HintPath>
+      <HintPath>..\..\Lib\MailMime\20210101\mimekit.2.10.1\lib\net45\MimeKit.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Buffers">
+      <HintPath>..\..\Lib\System.Buffers\system.buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

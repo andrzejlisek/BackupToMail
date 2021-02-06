@@ -72,13 +72,19 @@ namespace BackupToMail
 
         public static int RandomCacheStep = 25;
 
+        public static string TimestampNow()
+        {
+            return DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss.fff");
+        }
+
         /// <summary>
         /// Set configuration from configuration file
         /// </summary>
         /// <param name="CF"></param>
         public static void ConfigSet(ConfigFile CF)
         {
-            LogFile = CF.ParamGetS("LogFile");
+            LogFileTransfer = CF.ParamGetS("LogFileTransfer");
+            LogFileMessages = CF.ParamGetS("LogFileMessages");
             RandomCacheStep = CF.ParamGetI("RandomCacheStepBits");
             if (RandomCacheStep <= 0)
             {
@@ -124,10 +130,15 @@ namespace BackupToMail
         }
         
         /// <summary>
-        /// Upload and download log file
+        /// Upload and download log file - transfer
         /// </summary>
-        public static string LogFile = "";
-        
+        public static string LogFileTransfer = "";
+
+        /// <summary>
+        /// Upload and download log file - messages
+        /// </summary>
+        public static string LogFileMessages = "";
+
         /// <summary>
         /// Print general configuration
         /// </summary>
@@ -149,7 +160,22 @@ namespace BackupToMail
             Console.WriteLine("Default segment size: " + DefaultSegmentSize);
             Console.WriteLine("Default image size: " + DefaultImageSize + "x" + ImgHFromW(DefaultSegmentSize, DefaultImageSize));
             Console.WriteLine("Random sequence cache step: " + RandomCacheStep);
-            Console.WriteLine("Log file name: " + LogFile);
+            if (LogFileTransfer != "")
+            {
+                Console.WriteLine("Transfer log file name: " + LogFileTransfer);
+            }
+            else
+            {
+                Console.WriteLine("No transfer log file");
+            }
+            if (LogFileMessages != "")
+            {
+                Console.WriteLine("Messages log file name: " + LogFileMessages);
+            }
+            else
+            {
+                Console.WriteLine("No messages log file");
+            }
         }
 
         static MailSegment()
@@ -662,7 +688,9 @@ namespace BackupToMail
         }
 
         public static bool ConsoleLineToLog = false;
-        
+
+        private static bool ConsoleLineBegin = true;
+
         /// <summary>
         /// Write line to console from thread other than main thread
         /// </summary>
@@ -671,10 +699,19 @@ namespace BackupToMail
         {
             Monitor.Enter(Console_);
             Console.WriteLine(Str);
+            if (ConsoleLineBegin)
+            {
+                LogMsgL(Str);
+            }
+            else
+            {
+                LogMsgE(Str);
+            }
             if (ConsoleLineToLog)
             {
                 Log(Str);
             }
+            ConsoleLineBegin = true;
             Monitor.Exit(Console_);
         }
 
@@ -685,10 +722,40 @@ namespace BackupToMail
         public static void Console_WriteLine(string Str)
         {
             Console.WriteLine(Str);
+            if (ConsoleLineBegin)
+            {
+                LogMsgL(Str);
+            }
+            else
+            {
+                LogMsgE(Str);
+            }
             if (ConsoleLineToLog)
             {
                 Log(Str);
             }
+            ConsoleLineBegin = true;
+        }
+
+        /// <summary>
+        /// Write line to console
+        /// </summary>
+        /// <param name="Str"></param>
+        public static void Console_WriteLine_(string Str)
+        {
+            if (ConsoleLineBegin)
+            {
+                LogMsgL(Str);
+            }
+            else
+            {
+                LogMsgE(Str);
+            }
+            if (ConsoleLineToLog)
+            {
+                Log(Str);
+            }
+            ConsoleLineBegin = true;
         }
 
         /// <summary>
@@ -698,21 +765,88 @@ namespace BackupToMail
         public static void Console_Write(string Str)
         {
             Console.Write(Str);
+            if (ConsoleLineBegin)
+            {
+                LogMsgB(Str);
+            }
+            else
+            {
+                LogMsgM(Str);
+            }
+            ConsoleLineBegin = false;
         }
-        
+
+        private static void LogMsg1(string S, string F)
+        {
+            if (LogFileMessages != "")
+            {
+                try
+                {
+                    FileStream FS = new FileStream(LogFileMessages, FileMode.Append, FileAccess.Write);
+                    StreamWriter SW = new StreamWriter(FS);
+                    SW.Write(F);
+                    SW.Close();
+                    FS.Close();
+                }
+                catch
+                {
+
+                }
+            }
+        }
+
+        private static void LogMsg2(string S, string F)
+        {
+            if (LogFileMessages != "")
+            {
+                try
+                {
+                    FileStream FS = new FileStream(LogFileMessages, FileMode.Append, FileAccess.Write);
+                    StreamWriter SW = new StreamWriter(FS);
+                    SW.WriteLine(F);
+                    SW.Close();
+                    FS.Close();
+                }
+                catch
+                {
+
+                }
+            }
+        }
+
+        private static void LogMsgB(string T)
+        {
+            LogMsg1(T, TimestampNow() + "\t" + T);
+        }
+
+        private static void LogMsgM(string T)
+        {
+            LogMsg1(T, T);
+        }
+
+        private static void LogMsgL(string T)
+        {
+            LogMsg2(T, TimestampNow() + "\t" + T);
+        }
+
+        private static void LogMsgE(string T)
+        {
+            LogMsg2(T, T);
+        }
+
         /// <summary>
         /// Write one text to log file
         /// </summary>
         /// <param name="T1"></param>
         public static void Log(string T1)
         {
-            if (LogFile != "")
+            if (LogFileTransfer != "")
             {
                 try
                 {
-                    FileStream FS = new FileStream(LogFile, FileMode.Append, FileAccess.Write);
+                    FileStream FS = new FileStream(LogFileTransfer, FileMode.Append, FileAccess.Write);
                     StreamWriter SW = new StreamWriter(FS);
-                    SW.WriteLine(T1);
+                    SW.WriteLine(TimestampNow() + "\t" + T1);
                     SW.Close();
                     FS.Close();
                 }

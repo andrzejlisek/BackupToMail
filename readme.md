@@ -23,12 +23,13 @@ The general settings in **Config\.txt** file are following:
 
 * **ThreadsUpload** \- Number of simultaneous threads used in uploading \(default 1\)\.
 * **ThreadsDownload** \- Number of simultaneous threads used in downloading \(default 1\)\.
+* **UploadGroupChange** \- Number of upload errors, after which the grooup of sending mailboxes will be changed to the nest group \(default 5\)\.
 * **DefaultSegmentType** \- Segment type when segment type is not specified in upload command \(default 0\)\.
 * **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default 16777216 = 16MB\)\.
 * **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default 4096\)\.
-* **LogFile** \- If set, the transfer information \(uploading and downloading segments\) will be recorded into the file\.
-* **UploadGroupChange** \- Number of upload errors, after which the grooup of sending mailboxes will be changed to the nest group \(default 5\)\.
 * **RandomCacheStepBits** \- Number of bits to specify caching period in generating the dummy file contents \(default 25, which means 32MB\)\.
+* **LogFileTransfer** \- If set, the transfer information \(uploading and downloading segments\) will be recorded into the file \.
+* **LogFileMessages** \- If set, the transfer information \(all printed messages\) will be recorded into the file\.
 
 When parameter is not set or has incorrect value, the default value will be used\.
 
@@ -55,11 +56,21 @@ The parameters for account 0 are following:
 * **Mail0SmtpConnect \(0/1\)** \- Connect to SMTP server of this account directly before sending mail and disconnect after mail sending\. It can solve problems, which exists while sending several messages during one connection or if there is problem with reaining SMTP connection\.
 * **Mail0DeleteIdx \(0/1\)** \- Delete index after deleting message\. Some mailboxes may delete item from index immediatelly after marking a message to delete, the other mailboxes may not delete item from index even if IMAP protocol us used\. Usually, the item is not deleted immediatelly after deleting message, the index is valid until disconnect from the mailbox\. You have to experimentally detech, which valued of the setting is appropriate for certain mailbox\.
 
-The parameters indicated as **0/1** can have only **0** \(false\) or **1** \(true\) value\. The default value \(if parameter is not provided\) is **0**\. The account 1 has the same parameters, but with **Mail1** prefix istead of **Mail0** prefix\. Configuration is loaded as iterated loop while **Mail\_Address** is not blank\. If ypu define account 0, account 1 and account 3, ommiting account 2, the BackupToMail will load configuration for account 0 and account 1 only\.
+The parameters indicated as **0/1** can have only **0** \(false\) or **1** \(true\) value\. The default value \(if parameter is not provided\) is **0**\. The account 1 has the same parameters, but with **Mail1** prefix istead of **Mail0** prefix\. Configuration is loaded as iterated loop while **Mail\_Address** is not blank\.
+
+The number of accounts will be detected by account address\. If you define account 0, account 1 and account 3, ommiting account 2 \(or define account 2 without address\), the BackupToMail will load configuration for account 0 and account 1 only\.
 
 ## Configuration checking
 
-You can check configuration and test accounts using **CONFIG** parameter\.
+You can check configuration and test accounts using **CONFIG** parameter\. The command line parameters are following:
+
+
+* **CONFIG word** \- Print configuration and connection test,
+* **Account list** \- List of accounts to print configuration or connection test\.
+* **Test mode** \- Connection text one of following:
+  * **0** \- Print configuration without test\.
+  * **1** \- Connection test and print full configuration\.
+  * **2** \- Connection test and print test results only\.
 
 ### General configuration checking
 
@@ -77,11 +88,19 @@ You can provide the account numbers separated by comma \(without space separatio
 BackupToMail CONFIG 1,2,4
 ```
 
-You can test SMTP and IMAP/POP3 connection, if you input CONFIGTEST or TESTCONFIG parameter instead of CONFIG:
+You can test SMTP, IMAP and POP3 connection while configuration printing:
 
 ```
-BackupToMail CONFIGTEST 1,2,4
+BackupToMail CONFIG 1,2,4 1
 ```
+
+You can also test connection without configuration details to check if all accounts are available and see all connectionfailures at first glance\.
+
+```
+BackupToMail CONFIG 1,2,4 2
+```
+
+Some accounts requires sign in within certain time period since last sign in \(see account terms of use for details\)\. The connection test signs in to every specified server and resets the inactivity time\. In all connection failure cases, there will be printed the error message returned from the server\.
 
 # Map file
 
@@ -510,8 +529,14 @@ For the test purposes, you can use the dummy file, which is not real disk file, 
 
 
 1. **File size** \- file size in bytes\.
-2. **Generator type** \- 0 \- Linear congruential, 1 \- Fibonacci
-3. **Number of bits** \- allowed values are 1, 2, 4 and 8, there is a number of least significant bits of state value, which are used to generate byte value\.
+2. **Generator type** \- Pseudo random number generator type:
+  * 0 \- Linear congruential
+  * 1 \- Fibonacci
+3. **Number of bits** \- there is a number of least significant bits of state value, which are used to generate byte value:
+  * 1 \- use one least significant bit, use 8 values to generate one byte\.
+  * 2 \- use two least significant bits, use 4 values to generate one byte\.
+  * 4 \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
+  * 8 \- use whole value modulo by 256, as one byte\.
 4. **A constant** \- vaue used in generator\.
 5. **B constant** \- vaue used in generator\.
 6. **M constant** \- vaue used in generator\.
@@ -524,14 +549,6 @@ BackupToMail.exe UPLOAD "TestItem" "*500000000,1,8,3,1,257,7,16,5" "TestItem.txt
 BackupToMail.exe DOWNLOAD "TestItem" "*500000000,1,8,3,1,257,7,16,5" "TestItem.txt" 0 4 0
 ```
 
-You can use one of two generators, which may differs in speed and similarity to random values\. The **number of bits** beans as following:
-
-
-* 1 \- use one least significant bit, use 8 values to generate one byte\.
-* 2 \- use two least significant bits, use 4 values to generate one byte\.
-* 4 \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
-* 8 \- use whole value modulo by 256, as one byte\.
-
 For example, to create whole dummy file having 1000 bytes length, when **number of bits** is specified to 2, there will be generated 4000 values and sequence of foru values will be used to generate one byte\.The values can be generated sequentially only\. There is a reason, why the generator uses cache, which stores generator state periodically during generating values of contents\. Using the cache, generator does not have to generate values from beginning to generate file segment other than the first segment\. In the gereal settings, there is the **RandomCacheStepBits** parameter, which defines the caching period by number of bits\. If you set 25 \(default value\), the generator state will be store between every 33554432 \(32M\) values\. It is recommended to set the bits to get the value between quarter segment size and double segment size but the recommendation applying is not mandatory\. 
 
 Using the dummy file, you can test some features without managing large files, such as:
@@ -543,7 +560,7 @@ Using the dummy file, you can test some features without managing large files, s
 
 ## Linear congruential generator
 
-There is very simple generator\. The sequence period substantially depends on the A, B and M values\. Initial vector has always one value and the value is the initial state \(S0\)\. The next value is calculated using the following formula:
+There is very simple generator\. The sequence period substantially depends on the A, B and M values\. Initial vector has always one value and the value is the initial state \(S0\)\. The next value will be generated using the following formula:
 
 ```
 S[n] = (A * S[n-1] + B) mod M
@@ -565,13 +582,13 @@ Example for 1MB dummy file A=3, B=1, M=17, S=\(7,16,5\) using 4 bits of number: 
 
 ## Create disk file
 
-You can create real disk file,which has content the same as dummy file\. To do this, use the FILE command, for example:
+You can create real disk file, which has content the same as dummy file\. To do this, use the FILE command, for example:
 
 ```
 BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000
 ```
 
-You can use the `BATCHFILE` or `FILEBATCH` to create file without confirmation\. The last parameters \(`10000000` in example\) is the segment size used to display file creation progress\. This parameter can be ommited and there will be used default segment size\. Using this function, you can check the get acquainted with the dummy file content\.
+The last parameters \(`10000000` in example\) is the segment size used to display file creation progress\. This parameter can be ommited and there will be used default segment size\. Using this function, you can check the content of the dummy file related provided the dummy file definition\.
 
 ## Period and statistics
 
@@ -580,8 +597,8 @@ Both described generators generates bytes in period, which in many cases can be 
 Both parameters may have on of possible values:
 
 
-* **0 \- None** \- do not create statistics\.
-* **1 \- Simplified dist table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+* **0 \- No statistics** \- do not create statistics\.
+* **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
 * **2 \- Value list with zeros** \- print count of each value including zeros\.
 * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
 
@@ -595,7 +612,7 @@ BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000 1 2
 
 # Batch operations
 
-The following operations displays the operation parameters and waits for the confirmation by user\. The operations are following:
+The following operations displays the operation parameters and waits for the confirmation by user:
 
 
 * **UPLOAD** \- Uploading the file\.
@@ -615,16 +632,18 @@ You can ommit the confirmation if you add the BATCH word to operation word ass f
 
 This approach is very usable, when you want to run the BackupToMail from the script or batch file many times \(for example, to upload or download many files\)\.
 
-# Log file
+# Log files
 
-The upload and download operations can be logged to file\. To enable this feature, set the **LogFile** parameter to valid file name in **Config\.txt** configuration file\.
+The upload and download operations can be logged to two log files\. To enable this feature, set the **LogFileTransfer** or **LogFileMessages** parameters to valid file name in **Config\.txt** configuration file\. If you set both parameters, the value must be different\.
 
-In the log file, BackupToMail will log every upload or download action\. In the file there will be saved the following informations:
+In the log files, BackupToMail will log every upload or download action\. There will be saved the following informations:
 
 
 1. Before action \- type of action and action informations such as file names and mail accounts\.
-2. During action \- amount of uploaded or downloaded data during time\.
+2. During action \- amount of uploaded or downloaded data during time \(transfer log file\) and all printed messages \(messages log file\)\.
 3. After action \- information abount success, transfer time, average transfer rate\.
+
+Every line is prefixed by current date and time\. It is recomended to open log file using spreadsheet software\.
 
 The log file is not open always during working\. Application opens log file, adds the informatin, after this closes the log file\. If the BackupToMail will be broken suddenly \(for example, due to accidentally process killing\), the file will contain the last logged contents\.
 
@@ -650,7 +669,7 @@ For exaple, using your spreadsheet application, create the chart consisting usin
 
 ## Action details and error messages
 
-The log file will not contain the action details in time, including mailbox error messages, which are printed on the console\. To store such data, you have to redirect BackupToMail standard output to file using operating system facilities\.
+The transfer log file will not contain the action details in time, including mailbox error messages, which are printed on the console\. To store such data, use messages log file\.
 
 
 

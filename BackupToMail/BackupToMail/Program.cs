@@ -21,7 +21,7 @@ namespace BackupToMail
         {
             Main_(args);
         }
-        
+
         /// <summary>
         /// Converts string to integer, returns -1 if convert is not possible 
         /// </summary>
@@ -178,7 +178,6 @@ namespace BackupToMail
                     case "UPLOADBATCH": if (args.Length >= 6) { ProgMode = 11; } break;
                     case "DOWNLOADBATCH": if (args.Length >= 5) { ProgMode = 12; } break;
                     case "CONFIG": ProgMode = 3; break;
-                    case "TEST": ProgMode = 13; break;
                     case "FILE": ProgMode = 4; break;
                     case "BATCHFILE": ProgMode = 14; break;
                     case "FILEBATCH": ProgMode = 14; break;
@@ -313,9 +312,11 @@ namespace BackupToMail
                 {
                     for (int i = 0; i < WelcomeMsg.Count; i++)
                     {
+                        MailSegment.Console_WriteLine_(WelcomeMsg[i]);
                         MailSegment.Log(WelcomeMsg[i]);
                     }
                     MailSegment.FileUpload(ItemName, ItemData, ItemMap, AccSrc.ToArray(), AccDst.ToArray(), SegmentSize, SegmentType, SegmentImgSize);
+                    MailSegment.Console_WriteLine_("");
                 }
             }
             
@@ -490,27 +491,55 @@ namespace BackupToMail
                 {
                     for (int i = 0; i < WelcomeMsg.Count; i++)
                     {
+                        MailSegment.Console_WriteLine_(WelcomeMsg[i]);
                         MailSegment.Log(WelcomeMsg[i]);
                     }
                     MailSegment.FileDownload(ItemName, ItemData, ItemMap, AccSrc.ToArray(), AccMin.ToArray(), AccMax.ToArray(), FileDownloadMode_, FileDeleteMode_);
+                    MailSegment.Console_WriteLine_("");
                 }
             }
             
             // Configuration mode
-            if ((ProgMode == 3) || (ProgMode == 13))
+            if (ProgMode == 3)
             {
-                MailSegment.ConfigInfo();
+                int TestConn = 0;
+                if (args.Length >= 3)
+                {
+                    TestConn = StrToInt(args[2]);
+                    if (TestConn < 0)
+                    {
+                        TestConn = 0;
+                    }
+                }
+                if (TestConn != 2)
+                {
+                    MailSegment.ConfigInfo();
+                }
                 if (args.Length >= 2)
                 {
-                    bool TestConn = (ProgMode == 13);
                     List<int[]> Acc = CommaList(args[1]);
+                    if (TestConn == 2)
+                    {
+                        for (int i = 0; i < Acc.Count; i++)
+                        {
+                            Console.WriteLine("Account " + Acc[i][0] + ": " + MailSegment.MailAccountList[Acc[i][0]].Address);
+                        }
+                        Console.WriteLine();
+                    }
                     for (int i = 0; i < Acc.Count; i++)
                     {
                         if ((Acc[i][0] >= 0) && (Acc[i][0] < MailSegment.MailAccountList.Count))
                         {
-                            Console.WriteLine();
-                            Console.WriteLine("Account " + Acc[i][0] + ":");
-                            MailSegment.MailAccountList[Acc[i][0]].PrintInfo(TestConn);
+                            if (TestConn < 2)
+                            {
+                                Console.WriteLine();
+                                Console.WriteLine("Account " + Acc[i][0] + ":");
+                                MailSegment.MailAccountList[Acc[i][0]].PrintInfo(TestConn);
+                            }
+                            if (TestConn == 2)
+                            {
+                                MailSegment.MailAccountList[Acc[i][0]].PrintConnTest(Acc[i][0]);
+                            }
                         }
                     }
                 }
@@ -598,6 +627,11 @@ namespace BackupToMail
                             Stopwatch_ SW = new Stopwatch_();
                             FileStream FS_ = new FileStream(FileName, FileMode.Create, FileAccess.Write);
 
+                            if (CreateStats > 0)
+                            {
+                                RandomSequence_.StatsEnabled = true;
+                                RandomSequence_.StatsReset();
+                            }
                             while (SegmentI < DummyFileSize)
                             {
                                 Console.Write(DispI + "/" + DispL + " - ");
@@ -606,11 +640,6 @@ namespace BackupToMail
                                     DummySegmentSize = (DummyFileSize - SegmentI);
                                 }
 
-                                if (CreateStats > 0)
-                                {
-                                    RandomSequence_.StatsEnabled = true;
-                                    RandomSequence_.StatsReset();
-                                }
                                 byte[] Raw = RandomSequence_.GenSeq(SegmentI, DummySegmentSize);
                                 FS_.Write(Raw, 0, (int)DummySegmentSize);
 
@@ -780,8 +809,8 @@ namespace BackupToMail
             // Create or check digest
             if (((ProgMode == 5) || (ProgMode == 15)) && (args.Length > 3))
             {
-                ItemData = args[1];
-                ItemMap = args[2];
+                ItemData = args[2];
+                ItemMap = args[3];
                 int SegS = -1;
                 if (args.Length > 4)
                 {
@@ -796,14 +825,14 @@ namespace BackupToMail
                     SegS = MailSegment.DefaultSegmentSize;
                 }
 
-                if ((StrToInt(args[3]) == 0) || (StrToInt(args[3]) == 1))
+                if ((StrToInt(args[1]) == 0) || (StrToInt(args[1]) == 1))
                 {
                     DigestFile DF_ = new DigestFile();
-                    if (StrToInt(args[3]) == 0)
+                    if (StrToInt(args[1]) == 0)
                     {
                         Console.WriteLine("Create digest file");
                     }
-                    if (StrToInt(args[3]) == 1)
+                    if (StrToInt(args[1]) == 1)
                     {
                         Console.WriteLine("Check digest file");
                     }
@@ -820,11 +849,11 @@ namespace BackupToMail
                     }
                     if (Continue)
                     {
-                        if (StrToInt(args[3]) == 0)
+                        if (StrToInt(args[1]) == 0)
                         {
                             DF_.Proc(true, ItemData, ItemMap, SegS);
                         }
-                        if (StrToInt(args[3]) == 1)
+                        if (StrToInt(args[1]) == 1)
                         {
                             DF_.Proc(false, ItemData, ItemMap, SegS);
                         }
@@ -870,24 +899,24 @@ namespace BackupToMail
                 Console.WriteLine("Create or check digest file:");
                 Console.WriteLine("BackupToMail DIGEST <mode> <data file> <digest file> [<segment size>]");
                 Console.WriteLine("Available modes:");
-                Console.WriteLine(" 0 - Create the digest file from the data file");
+                Console.WriteLine(" 0 - Create the digest file from the data file (default)");
                 Console.WriteLine(" 1 - Check the digest file against the data file");
                 Console.WriteLine();
                 Console.WriteLine("Create file based on dummy file generator:");
                 Console.WriteLine("BackupToMail FILE <dummy file definition> <file name>");
-                Console.WriteLine("[<segment size> <dist mode> <period mode>]");
-                Console.WriteLine("Dist mode and period modes possible values:");
-                Console.WriteLine(" 0 - None (default)");
-                Console.WriteLine(" 1 - Simplified dist table");
+                Console.WriteLine("[<segment size> <file stats mode> <period stats mode>]");
+                Console.WriteLine("File stats modes and period stats modes:");
+                Console.WriteLine(" 0 - No statistics (default)");
+                Console.WriteLine(" 1 - Simplified distribution table");
                 Console.WriteLine(" 2 - Value list with zeros");
                 Console.WriteLine(" 3 - Value list without zeros");
                 Console.WriteLine();
-                Console.WriteLine("Print general and account configuration without connection test:");
-                Console.WriteLine("BackupToMail CONFIG <account list by commas>");
-                Console.WriteLine();
-                Console.WriteLine("Print general and account configuration with connection test:");
-                Console.WriteLine("BackupToMail TEST <account list by commas>");
-                Console.WriteLine();
+                Console.WriteLine("Print configuration and connection test:");
+                Console.WriteLine("BackupToMail CONFIG <account list by commas> [<connection test mode>]");
+                Console.WriteLine("Connection test modes:");
+                Console.WriteLine(" 0 - Print configuration without test (default)");
+                Console.WriteLine(" 1 - Connection test and print full configuration");
+                Console.WriteLine(" 2 - Connection test and print test results only");
             }
             Console.WriteLine();
         }
@@ -987,7 +1016,7 @@ namespace BackupToMail
             Console.WriteLine("Maximum: " + ValMax);
             Console.WriteLine("Sum: " + ValSum);
             Console.WriteLine("Number of non-zeros: " + ValCount0);
-            Console.WriteLine("Number of zeros: " + (255 - ValCount0));
+            Console.WriteLine("Number of zeros: " + (256UL - ValCount0));
         }
     }
 }
