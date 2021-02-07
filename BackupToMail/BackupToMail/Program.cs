@@ -522,7 +522,10 @@ namespace BackupToMail
                     {
                         for (int i = 0; i < Acc.Count; i++)
                         {
-                            Console.WriteLine("Account " + Acc[i][0] + ": " + MailSegment.MailAccountList[Acc[i][0]].Address);
+                            if ((Acc[i][0] >= 0) && (Acc[i][0] < MailSegment.MailAccountList.Count))
+                            {
+                                Console.WriteLine("Account " + Acc[i][0] + ": " + MailSegment.MailAccountList[Acc[i][0]].Address);
+                            }
                         }
                         Console.WriteLine();
                     }
@@ -585,17 +588,17 @@ namespace BackupToMail
                 Console.WriteLine("Segment size: " + DummySegmentSize);
                 switch (CreateStats)
                 {
-                    case 0: Console.WriteLine("File distribution: None"); break;
-                    case 1: Console.WriteLine("File distribution: Simplified dist table"); break;
-                    case 2: Console.WriteLine("File distribution: Value list with zeros"); break;
-                    case 3: Console.WriteLine("File distribution: Value list without zeros"); break;
+                    case 0: Console.WriteLine("File statistics: No statistics"); break;
+                    case 1: Console.WriteLine("File statistics: Simplified distribution table"); break;
+                    case 2: Console.WriteLine("File statistics: Value list with zeros"); break;
+                    case 3: Console.WriteLine("File statistics: Value list without zeros"); break;
                 }
                 switch (CreatePeriod)
                 {
-                    case 0: Console.WriteLine("Search period: None"); break;
-                    case 1: Console.WriteLine("Search period: Simplified dist table"); break;
-                    case 2: Console.WriteLine("Search period: Value list with zeros"); break;
-                    case 3: Console.WriteLine("Search period: Value list without zeros"); break;
+                    case 0: Console.WriteLine("Period statistics: No statistics (period will not be searched)"); break;
+                    case 1: Console.WriteLine("Period statistics: Simplified distribution table"); break;
+                    case 2: Console.WriteLine("Period statistics: Value list with zeros"); break;
+                    case 3: Console.WriteLine("Period statistics: Value list without zeros"); break;
                 }
                 Console.WriteLine();
 
@@ -709,7 +712,7 @@ namespace BackupToMail
                                     PeriodChunks++;
                                 }
 
-                                int PeriodCount = (int)(DummyFileSize / i);
+                                long PeriodCount = (DummyFileSize / i);
                                 if ((DummyFileSize % i) > 0)
                                 {
                                     PeriodCount++;
@@ -730,7 +733,7 @@ namespace BackupToMail
                                     FS.Read(PeriodArray0, 0, (int)PeriodChunkSize);
 
                                     int PeriodChunkSize__ = 0;
-                                    for (int iii = (PeriodCount - 2); iii >= 0; iii--)
+                                    for (long iii = (PeriodCount - 2); iii >= 0; iii--)
                                     {
                                         PeriodFilePos += i;
                                         PeriodChunkSize__ = (int)PeriodChunkSize;

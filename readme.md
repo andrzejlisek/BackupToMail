@@ -582,32 +582,40 @@ Example for 1MB dummy file A=3, B=1, M=17, S=\(7,16,5\) using 4 bits of number: 
 
 ## Create disk file
 
-You can create real disk file, which has content the same as dummy file\. To do this, use the FILE command, for example:
+You can create real disk file, which has content the same as dummy file\. To do this, use the FILE command with following parameters:
+
+
+* **FILE word** \- create file based on dummy file definition\.
+* **Dummy file definition** \- the dummy file definition described above\.
+* **File name** \- Real disk file name\.
+* **Segment size** \- segment size used to display file creation progress\. If ommited or set as **0**, there will be used default segment size\.
+* **File stats mode** \- One of the file statistics modes:
+  * **0 \- No statistics** \- do not create statistics\.
+  * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+  * **2 \- Value list with zeros** \- print count of each value including zeros\.
+  * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+* **Period stats mode** \- One of the period statistics modes:
+  * **0 \- No statistics** \- do not create statistics, the period will not be searched\.
+  * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+  * **2 \- Value list with zeros** \- print count of each value including zeros\.
+  * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+
+File creation example using segment size and without statistics and period searching:
 
 ```
-BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000
+BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" File.bin 10000000
 ```
-
-The last parameters \(`10000000` in example\) is the segment size used to display file creation progress\. This parameter can be ommited and there will be used default segment size\. Using this function, you can check the content of the dummy file related provided the dummy file definition\.
 
 ## Period and statistics
 
-Both described generators generates bytes in period, which in many cases can be short, depending on input parameters \(dummy file definition\)\. You can use file creating to get statistics\. To do this, you can add two additional parameters, which are numbers\. The first of these is generating file distribution, the second is calculating period length and period distribution\.
+Both described generators generates bytes in period, which in many cases can be short, depending on input parameters \(dummy file definition\)\. You can use file creating to get statistics\. 
 
-Both parameters may have on of possible values:
-
-
-* **0 \- No statistics** \- do not create statistics\.
-* **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
-* **2 \- Value list with zeros** \- print count of each value including zeros\.
-* **3 \- Value list without zeros** \- print count of each value excluding zeros\.
-
-The period calculation may take a long of time depending on file size\. The progress is displayed by **period** and **occurence** values\. The algorithm tests if file contains the period of given size, begins from 1 and ends either if period found or if tested period size reach the file size\. Within testing one period length value, program checks all occurences if the maches the first occurence\. If any occurence does not match the first occurence, the further occurences will not be tested The progress will be displayed every 1 second using timer\.
+The period search may take a long of time depending on file size\. The progress is displayed by **period** and **occurence** values\. The algorithm tests if file contains the period of given size, begins from 1 and ends either if period found or if tested period size reach the file size\. Within testing one period length value, program checks all occurences if the maches the first occurence\. If any occurence does not match the first occurence, the further occurences will not be tested The progress will be displayed every 1 second using timer\.
 
 Example to create file with display simple table with file distribution and period calculation with display period distribution using detailed list without zeros:
 
 ```
-BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" "File.bin" 10000000 1 2
+BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" File.bin 0 1 2
 ```
 
 # Batch operations
