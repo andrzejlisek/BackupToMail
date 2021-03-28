@@ -44,17 +44,20 @@ namespace BackupToMail
             Duplicate = 2,
             ThisFile = 4,
             OtherMsg = 8,
-            OtherFiles = 16
+            OtherFiles = 16,
+            Undownloadable = 32
         }
 
-        public static byte[] MailReceive(int Account, IMailFolder ImapClient_, Pop3Client Pop3Client_, int Idx, out string MsgInfo_, ref bool Reconnect, CancellationTokenSource cancel)
+        public static byte[] MailReceive(string ConsoleInfo, string ConsoleDownCheck, int Account, IMailFolder ImapClient_, Pop3Client Pop3Client_, int Idx, out string MsgInfo_, ref int ErrorType, CancellationTokenSource cancel)
         {
+            ErrorType = 0;
             if ((ImapClient_ == null) && (Pop3Client_ == null))
             {
                 MsgInfo_ = "";
+                ErrorType = 3;
                 return null;
             }
-            
+
             MimeMessage Msg = null;
             CleanUp();
             bool Work = true;
@@ -81,8 +84,8 @@ namespace BackupToMail
                     }
                     else
                     {
-                        Console_WriteLine_Thr("Account " + Account + " - message download error: " + ExcMsg(e));
-                        Reconnect = true;
+                        Console_WriteLine_Thr(ConsoleInfo + " - " + ConsoleDownCheck + " error: " + ExcMsg(e));
+                        ErrorType = 1;
                         MsgInfo_ = "";
                         return null;
                     }
@@ -90,7 +93,7 @@ namespace BackupToMail
             }
             CleanUp();
             MsgInfo_ = Msg.Headers["Subject"];
-            
+
             foreach (MimeEntity MsgAtta_ in Msg.Attachments)
             {
                 MimePart MsgAtta = (MimePart)MsgAtta_;
@@ -111,7 +114,7 @@ namespace BackupToMail
                     }
                 }
             }
-            
+
             if ((Msg.TextBody != null) && (Msg.HtmlBody == null))
             {
                 try
@@ -122,7 +125,7 @@ namespace BackupToMail
                 {
                 }
             }
-            
+
             if ((Msg.TextBody == null) && (Msg.HtmlBody != null))
             {
                 try
@@ -137,38 +140,57 @@ namespace BackupToMail
                 {
                 }
             }
-            
+
+            ErrorType = 2;
             return null;
         }
 
 
-        public static void FileDownloadDeleteMark(int I, Pop3Client Pop3Client_, IMailFolder ImapClient_Inbox_, CancellationTokenSource cancel)
+        public static bool FileDownloadDeleteMark(int I, Pop3Client Pop3Client_, IMailFolder ImapClient_Inbox_, CancellationTokenSource cancel)
         {
-            if (Pop3Client_ != null)
+            try
             {
-                Pop3Client_.DeleteMessage(I);
+                if (Pop3Client_ != null)
+                {
+                    Pop3Client_.DeleteMessage(I);
+                }
+                if (ImapClient_Inbox_ != null)
+                {
+                    ImapClient_Inbox_.AddFlags(I, MessageFlags.Deleted, true, cancel.Token);
+                }
+                return true;
             }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static void FileDownloadDeleteAction(Pop3Client Pop3Client_, IMailFolder ImapClient_Inbox_, CancellationTokenSource cancel)
+        {
             if (ImapClient_Inbox_ != null)
             {
-                ImapClient_Inbox_.AddFlags(I, MessageFlags.Deleted, true, cancel.Token);
+                try
+                {
+                    ImapClient_Inbox_.Expunge();
+                }
+                catch
+                {
+
+                }
             }
         }
 
-        public static void FileDownloadDeleteAction(Pop3Client Pop3Client_, CancellationTokenSource cancel)
-        {
-        }
 
-        public static void FileDownloadDeleteAction(IMailFolder ImapClient_Inbox_, CancellationTokenSource cancel)
-        {
-            ImapClient_Inbox_.Expunge();
-        }
-
-        
-        public static void FileDownloadAccount(int Account, FileDownloadMode FileDownloadMode_, FileDeleteMode FileDeleteMode_, string FileName_, ref MailFile MF)
+        public static void FileDownloadAccount(int Account, bool FileDownloadReverseOrder, FileDownloadMode FileDownloadMode_, FileDeleteMode FileDeleteMode_, string[] FileName_, ref MailFile[] MF)
         {
             int DeletedMsgs = 0;
-            int SegmentDownloadedAlready = 0;
-            string FileName = Digest(FileName_);
+            int MF_Length = MF.Length;
+            string[] FileName = new string[MF_Length];
+            for (int i = 0; i < MF_Length; i++)
+            {
+                FileName[i] = Digest(FileName_[i]);
+            }
             bool DownloadMessage = false;
             if (FileDownloadMode_ == FileDownloadMode.Download) { DownloadMessage = true; }
             if (FileDownloadMode_ == FileDownloadMode.DownloadDigest) { DownloadMessage = true; }
@@ -182,7 +204,10 @@ namespace BackupToMail
             int IdxMax_ = IdxMin_;
             int IdxMin___ = -1;
             int IdxMax___ = -1;
-            using (CancellationTokenSource cancel = new CancellationTokenSource ())
+            int HeaderRetryC = DownloadRetry;
+            int HeaderRetryI = HeaderRetryC;
+            bool Undownloadable = false;
+            using (CancellationTokenSource cancel = new CancellationTokenSource())
             {
                 bool Pop3Use = MailAccountList[Account].Pop3Use;
                 bool DecreaseIndexAfterDelete = MailAccountList[Account].DeleteIdx;
@@ -191,13 +216,21 @@ namespace BackupToMail
                 ImapClient[] ImapClient_ = new ImapClient[ThreadsDownload_ + 1];
                 IMailFolder[] ImapClient_Inbox_ = new IMailFolder[ThreadsDownload_ + 1];
 
-    
+
                 List<MailRecvParam> MailRecvParam_ = new List<MailRecvParam>();
-                
-                int FileSegmentProgress = 0;
-                int FileSegmentCount = 0;
-                int FileSegmentSize0 = 0;
-                
+
+                int[] SegmentDownloadedAlready = new int[MF_Length];
+                int[] FileSegmentProgress = new int[MF_Length];
+                int[] FileSegmentCount = new int[MF_Length];
+                int[] FileSegmentSize0 = new int[MF_Length];
+                for (int i = 0; i < MF_Length; i++)
+                {
+                    SegmentDownloadedAlready[i] = 0;
+                    FileSegmentProgress[i] = 0;
+                    FileSegmentCount[i] = 0;
+                    FileSegmentSize0[i] = 0;
+                }
+
                 int MsgCount = 1;
                 bool NeedConnect = true;
                 int BlankIndexes = 0;
@@ -305,7 +338,7 @@ namespace BackupToMail
                                 IdxMax_ = Math.Min(MsgCount - 1, IdxMax - 1);
                             }
                         }
-                        
+
                         if (ConnGood)
                         {
                             if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
@@ -322,6 +355,12 @@ namespace BackupToMail
 
                     if (i <= IdxMax_)
                     {
+                        int MsgIdx = i;
+                        if (FileDownloadReverseOrder)
+                        {
+                            MsgIdx = MsgCount - 1 - i;
+                        }
+
                         if ((MailRecvParam_.Count < ThreadsDownload_) || (!DownloadMessage))
                         {
                             HeaderList MsgH = null;
@@ -329,22 +368,34 @@ namespace BackupToMail
                             {
                                 try
                                 {
-                                    Console_Write(CreateConsoleInfoD(Account, i, MsgCount));
+                                    Console_Write(CreateConsoleInfoD(Account, MsgIdx, MsgCount));
                                     if (Pop3Use)
                                     {
-                                        MsgH = Pop3Client_[ThreadsDownload_].GetMessageHeaders(i, cancel.Token);
+                                        MsgH = Pop3Client_[ThreadsDownload_].GetMessageHeaders(MsgIdx, cancel.Token);
                                     }
                                     else
                                     {
-                                        MsgH = ImapClient_Inbox_[ThreadsDownload_].GetHeaders(i, cancel.Token);
+                                        MsgH = ImapClient_Inbox_[ThreadsDownload_].GetHeaders(MsgIdx, cancel.Token);
                                     }
+                                    HeaderRetryI = HeaderRetryC;
+                                    Undownloadable = false;
                                 }
                                 catch (Exception e)
                                 {
                                     MsgH = null;
                                     Console_WriteLine("header download error: " + ExcMsg(e));
-                                    i--;
-                                    i -= DeletedMsgs;
+                                    if (HeaderRetryI > 0)
+                                    {
+                                        i--;
+                                        i -= DeletedMsgs;
+                                        HeaderRetryI--;
+                                        Undownloadable = false;
+                                    }
+                                    else
+                                    {
+                                        HeaderRetryI = HeaderRetryC;
+                                        Undownloadable = true;
+                                    }
                                     NeedConnect = true;
                                 }
                             }
@@ -352,12 +403,15 @@ namespace BackupToMail
                             {
                                 Console_WriteLine("Account " + Account + " - no messages");
                             }
-                            
+
+
+                            bool DeleteBasedOnHeader = false;
+
                             if (MsgH != null)
                             {
                                 string MsgInfoS = MsgH["Subject"];
                                 string[] MsgInfo = (MsgInfoS != null) ? MsgInfoS.Split(InfoSeparatorC) : new string[0];
-                                
+
                                 bool IsFileMessage = (MsgInfo.Length == 8);
                                 if (IsFileMessage)
                                 {
@@ -368,27 +422,45 @@ namespace BackupToMail
                                     if (!ConsistsOfHex(MsgInfo[5])) { IsFileMessage = false; }
                                     if (!ConsistsOfHex(MsgInfo[6])) { IsFileMessage = false; }
                                 }
-                                
+
                                 if (IsFileMessage)
                                 {
-                                    string ConsoleInfoS = CreateConsoleInfoDS(Account, i, MsgCount, MsgInfo);
-                                    Console_Write(ConsoleInfoS + " - ");
 
-                                    if (MsgInfo[1] == FileName)
+                                    int FileI = -1;
+                                    for (int i__ = 0; i__ < MF_Length; i__++)
                                     {
-                                        bool Good = true;
-                                        if (FileSegmentCount == 0)
+                                        if (MsgInfo[1] == FileName[i__])
                                         {
-                                            FileSegmentCount = HexToInt(MsgInfo[3]) + 1;
-                                            FileSegmentSize0 = HexToInt(MsgInfo[5]) + 1;
-                                            MF.SetSegmentCount(FileSegmentCount);
-                                            MF.SetSegmentSize(FileSegmentSize0);
-                                            MF.MapCalcStats();
-                                            SegmentDownloadedAlready = MF.MapCount(1) + MF.MapCount(2);
-                                            
+                                            FileI = i__;
+                                        }
+                                    }
+
+                                    string ConsoleInfoS = CreateConsoleInfoDS(Account, MsgIdx, MsgCount, FileI, MsgInfo);
+
+                                    if (FileI >= 0)
+                                    {
+                                        Console_Write(ConsoleInfoS + " - ");
+                                        bool Good = true;
+                                        if (FileSegmentCount[FileI] == 0)
+                                        {
+                                            FileSegmentCount[FileI] = HexToInt(MsgInfo[3]) + 1;
+                                            FileSegmentSize0[FileI] = HexToInt(MsgInfo[5]) + 1;
+                                            MF[FileI].SetSegmentCount(FileSegmentCount[FileI]);
+                                            MF[FileI].SetSegmentSize(FileSegmentSize0[FileI]);
+                                            MF[FileI].MapCalcStats();
+                                            SegmentDownloadedAlready[FileI] = MF[FileI].MapCount(1) + MF[FileI].MapCount(2);
+
                                             if (((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest)) && (FileDeleteMode_ == FileDeleteMode.None))
                                             {
-                                                if (MF.MapCount(0) == 0)
+                                                bool FileAllDownloaded = true;
+                                                for (int i___ = 0; i___ < MF_Length; i___++)
+                                                {
+                                                    if (MF[FileI].MapCount(0) != 0)
+                                                    {
+                                                        FileAllDownloaded = false;
+                                                    }
+                                                }
+                                                if (FileAllDownloaded)
                                                 {
                                                     if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
                                                     {
@@ -407,33 +479,31 @@ namespace BackupToMail
                                         }
                                         else
                                         {
-                                            if (FileSegmentCount != (HexToInt(MsgInfo[3]) + 1))
+                                            if (FileSegmentCount[FileI] != (HexToInt(MsgInfo[3]) + 1))
                                             {
                                                 Console_WriteLine("segment count mismatch");
                                                 if ((FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
                                                 {
-                                                    FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                                    DeletedMsgs++;
+                                                    DeleteBasedOnHeader = true;
                                                 }
                                                 Good = false;
                                             }
-                                            if (FileSegmentSize0 != (HexToInt(MsgInfo[5]) + 1))
+                                            if (FileSegmentSize0[FileI] != (HexToInt(MsgInfo[5]) + 1))
                                             {
                                                 Console_WriteLine("segment nominal size mismatch");
                                                 if ((FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
                                                 {
-                                                    FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                                    DeletedMsgs++;
+                                                    DeleteBasedOnHeader = true;
                                                 }
                                                 Good = false;
                                             }
                                         }
-                                        
+
                                         int FileSegmentNum = HexToInt(MsgInfo[2]);
-                                        
+
                                         if (Good)
                                         {
-                                            if (MF.MapGet(FileSegmentNum) == 2)
+                                            if (MF[FileI].MapGet(FileSegmentNum) == 2)
                                             {
                                                 if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
                                                 {
@@ -445,18 +515,17 @@ namespace BackupToMail
                                                 }
                                                 Good = false;
                                             }
-                                            if (MF.MapGet(FileSegmentNum) == 1)
+                                            if (MF[FileI].MapGet(FileSegmentNum) == 1)
                                             {
                                                 if ((FileDeleteMode_ & FileDeleteMode.Duplicate) == FileDeleteMode.Duplicate)
                                                 {
-                                                    FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                                    DeletedMsgs++;
+                                                    DeleteBasedOnHeader = true;
                                                 }
                                                 Console_WriteLine("duplicate");
                                                 Good = false;
                                             }
                                         }
-                                        
+
                                         // 1 - File name
                                         // 2 - Number of segment
                                         // 3 - Count of segments
@@ -476,39 +545,59 @@ namespace BackupToMail
                                             if (DownloadMessage)
                                             {
                                                 BlankIndexes = 0;
-                                                if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
+                                                bool MailRecvParam__Exists = false;
+                                                for (int i___ = 0; i___ < MailRecvParam_.Count; i___++)
                                                 {
-                                                    Console_WriteLine("to download");
+                                                    if (MailRecvParam_[i___].Idx == MsgIdx)
+                                                    {
+                                                        MailRecvParam__Exists = true;
+                                                    }
+                                                }
+
+                                                if (MailRecvParam__Exists)
+                                                {
+                                                    Console_WriteLine("in another thread");
                                                 }
                                                 else
                                                 {
-                                                    Console_WriteLine("to check");
+                                                    if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
+                                                    {
+                                                        Console_WriteLine("to download");
+                                                    }
+                                                    else
+                                                    {
+                                                        Console_WriteLine("to check");
+                                                    }
+                                                    MailRecvParam MailRecvParam__ = new MailRecvParam();
+                                                    MailRecvParam__.AttemptUndownloadable = 0;
+                                                    MailRecvParam__.AttemptBad = 0;
+                                                    MailRecvParam__.FileI = FileI;
+                                                    MailRecvParam__.Idx = MsgIdx;
+                                                    MailRecvParam__.MsgCount = MsgCount;
+                                                    MailRecvParam__.MsgInfo = MsgInfoS;
+                                                    MailRecvParam__.Account = Account;
+                                                    MailRecvParam__.FileSegmentNum = FileSegmentNum;
+                                                    MailRecvParam__.cancel = cancel;
+                                                    MailRecvParam__.Reconnect = false;
+                                                    MailRecvParam__.FileDownloadMode_ = FileDownloadMode_;
+                                                    MailRecvParam__.FileDeleteMode_ = FileDeleteMode_;
+                                                    MailRecvParam__.ToDeleteFile = ((FileDeleteMode_ & FileDeleteMode.ThisFile) == FileDeleteMode.ThisFile);
+                                                    MailRecvParam__.ToDelete = false;
+                                                    MailRecvParam_.Add(MailRecvParam__);
                                                 }
-                                                MailRecvParam MailRecvParam__ = new MailRecvParam();
-                                                MailRecvParam__.Idx = i;
-                                                MailRecvParam__.MsgCount = MsgCount;
-                                                MailRecvParam__.MsgInfo = MsgInfoS;
-                                                MailRecvParam__.Account = Account;
-                                                MailRecvParam__.FileSegmentNum = FileSegmentNum;
-                                                MailRecvParam__.cancel = cancel;
-                                                MailRecvParam__.Reconnect = false;
-                                                MailRecvParam__.FileDownloadMode_ = FileDownloadMode_;
-                                                MailRecvParam__.FileDeleteMode_ = FileDeleteMode_;
-                                                MailRecvParam__.ToDelete = ((FileDeleteMode_ & FileDeleteMode.ThisFile) == FileDeleteMode.ThisFile);
-                                                MailRecvParam_.Add(MailRecvParam__);
                                             }
                                             else
                                             {
                                                 if (FileDownloadMode_ == FileDownloadMode.CheckExistHeader)
                                                 {
                                                     Console_WriteLine("exists");
-                                                    MF.MapSet(FileSegmentNum, 1);
+                                                    MF[FileI].MapSet(FileSegmentNum, 1);
                                                 }
                                                 if ((FileDownloadMode_ == FileDownloadMode.CompareHeader) || (FileDownloadMode_ == FileDownloadMode.CompareHeaderDigest))
                                                 {
                                                     bool Good_ = false;
                                                     int FileSegmentSize = HexToInt(MsgInfo[4]) + 1;
-                                                    byte[] Temp = MF.DataGet(FileSegmentNum);
+                                                    byte[] Temp = MF[FileI].DataGet(FileSegmentNum);
                                                     if (FileDownloadMode_ == FileDownloadMode.CompareHeaderDigest)
                                                     {
                                                         if (BinToStr(Temp) == MsgInfo[6])
@@ -523,26 +612,24 @@ namespace BackupToMail
                                                             Good_ = true;
                                                         }
                                                     }
-                                                    
+
                                                     if (Good_)
                                                     {
                                                         Console_WriteLine("good");
-                                                        MF.MapSet(FileSegmentNum, 1);
+                                                        MF[FileI].MapSet(FileSegmentNum, 1);
                                                     }
                                                     else
                                                     {
                                                         Console_WriteLine("bad");
                                                         if ((FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
                                                         {
-                                                            FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                                            DeletedMsgs++;
+                                                            DeleteBasedOnHeader = true;
                                                         }
                                                     }
                                                 }
                                                 if ((FileDeleteMode_ & FileDeleteMode.ThisFile) == FileDeleteMode.ThisFile)
                                                 {
-                                                    FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                                    DeletedMsgs++;
+                                                    DeleteBasedOnHeader = true;
                                                 }
                                             }
                                         }
@@ -553,12 +640,11 @@ namespace BackupToMail
                                     }
                                     else
                                     {
+                                        Console_WriteLine(ConsoleInfoS);
                                         BlankIndexes++;
-                                        Console_WriteLine("other file");
                                         if ((FileDeleteMode_ & FileDeleteMode.OtherFiles) == FileDeleteMode.OtherFiles)
                                         {
-                                            FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                            DeletedMsgs++;
+                                            DeleteBasedOnHeader = true;
                                         }
                                     }
                                 }
@@ -568,8 +654,38 @@ namespace BackupToMail
                                     Console_WriteLine("other message");
                                     if ((FileDeleteMode_ & FileDeleteMode.OtherMsg) == FileDeleteMode.OtherMsg)
                                     {
-                                        FileDownloadDeleteMark(i, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                        DeletedMsgs++;
+                                        DeleteBasedOnHeader = true;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if (Undownloadable)
+                                {
+                                    Console_Write(CreateConsoleInfoD(Account, MsgIdx, MsgCount));
+                                    Console_WriteLine("undownloadable");
+                                    BlankIndexes++;
+                                    if ((FileDeleteMode_ & FileDeleteMode.Undownloadable) == FileDeleteMode.Undownloadable)
+                                    {
+                                        DeleteBasedOnHeader = true;
+                                    }
+                                }
+                            }
+
+                            if (DeleteBasedOnHeader)
+                            {
+                                if (FileDownloadDeleteMark(MsgIdx, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel))
+                                {
+                                    DeletedMsgs++;
+                                    if (DecreaseIndexAfterDelete)
+                                    {
+                                        for (int ii = 0; ii < MailRecvParam_.Count; ii++)
+                                        {
+                                            if (MailRecvParam_[ii].Idx > MsgIdx)
+                                            {
+                                                MailRecvParam_[ii].Idx--;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -581,21 +697,23 @@ namespace BackupToMail
                         if (DecreaseIndexAfterDelete)
                         {
                             MsgCount -= DeletedMsgs;
-                            if (IdxMax > 0)
                             {
-                                IdxMax -= DeletedMsgs;
-                                IdxMax_ = Math.Min(MsgCount - 1, IdxMax - 1);
-                                if (IdxMax < 0)
+                                if (IdxMax > 0)
                                 {
-                                    IdxMax = 0;
+                                    IdxMax -= DeletedMsgs;
+                                    IdxMax_ = Math.Min(MsgCount - 1, IdxMax - 1);
+                                    if (IdxMax < 0)
+                                    {
+                                        IdxMax = 0;
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                IdxMax_ = MsgCount - 1;
-                            }
+                                else
+                                {
+                                    IdxMax_ = MsgCount - 1;
+                                }
 
-                            i -= DeletedMsgs;
+                                i -= DeletedMsgs;
+                            }
                             DeletedMsgs = 0;
                         }
                     }
@@ -607,6 +725,8 @@ namespace BackupToMail
                             BlankIndexes = 0;
                             for (int ii = 0; ii < MailRecvParam_.Count; ii++)
                             {
+                                MailRecvParam_[ii].Reconnect = false;
+                                MailRecvParam_[ii].Good = false;
                                 if (Pop3Use)
                                 {
                                     MailRecvParam_[ii].Pop3Client_ = Pop3Client_[ii];
@@ -616,29 +736,48 @@ namespace BackupToMail
                                     MailRecvParam_[ii].ImapClient_Inbox_ = ImapClient_Inbox_[ii];
                                 }
                             }
-                            FileDownloadMsg(ref MailRecvParam_, MF, ref FileSegmentProgress, FileSegmentCount - SegmentDownloadedAlready);
+                            FileDownloadMsg(ref MailRecvParam_, MF, ref FileSegmentProgress, FileSegmentCount, SegmentDownloadedAlready);
+                            List<int> ToDeleteIdx = new List<int>();
                             for (int ii = 0; ii < MailRecvParam_.Count; ii++)
                             {
-                                if (MailRecvParam_[ii].ToDelete)
-                                {
-                                    FileDownloadDeleteMark(MailRecvParam_[ii].Idx, Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel);
-                                    DeletedMsgs++;
-                                }
                                 if (MailRecvParam_[ii].Reconnect)
                                 {
                                     NeedConnect = true;
                                 }
                                 else
                                 {
+                                    if ((MailRecvParam_[ii].ToDelete) || (MailRecvParam_[ii].ToDeleteFile))
+                                    {
+                                        ToDeleteIdx.Add(MailRecvParam_[ii].Idx);
+                                    }
                                     MailRecvParam_.RemoveAt(ii);
                                     ii--;
                                 }
                             }
+                            ToDeleteIdx.Sort();
+                            for (int ii = (ToDeleteIdx.Count - 1); ii >= 0; ii--)
+                            {
+                                if (FileDownloadDeleteMark(ToDeleteIdx[ii], Pop3Client_[ThreadsDownload_], ImapClient_Inbox_[ThreadsDownload_], cancel))
+                                {
+                                    DeletedMsgs++;
+                                }
+                            }
                             if (((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest)) && (FileDeleteMode_ == FileDeleteMode.None))
                             {
-                                if (FileSegmentProgress == (FileSegmentCount - SegmentDownloadedAlready))
+                                bool FileDownloadedAll = true;
+                                for (int ii = 0; ii < MF_Length; ii++)
                                 {
-                                    Console_WriteLine("Downloaded all segments, no need to iterate over next messages.");
+                                    if ((FileSegmentProgress[ii] != (FileSegmentCount[ii] - SegmentDownloadedAlready[ii])) || (FileSegmentCount[ii] == 0))
+                                    {
+                                        FileDownloadedAll = false;
+                                    }
+                                }
+                                if (FileDownloadedAll)
+                                {
+                                    if (i < IdxMax_)
+                                    {
+                                        Console_WriteLine("Downloaded all segments, no need to iterate over next messages.");
+                                    }
                                     i = IdxMax_ + 1;
                                     MailRecvParam_.Clear();
                                 }
@@ -646,7 +785,7 @@ namespace BackupToMail
                         }
                     }
                 }
-                        
+
                 Console_WriteLine("Account " + Account + " - disconnecting");
                 for (int I = 0; I <= ThreadsDownload_; I++)
                 {
@@ -655,11 +794,11 @@ namespace BackupToMail
                         if (Pop3Client_[I].IsConnected)
                         {
                             if ((FileDeleteMode_ != FileDeleteMode.None) && (I == ThreadsDownload_))
-                            {    
-                                FileDownloadDeleteAction(Pop3Client_[ThreadsDownload_], cancel);
+                            {
+                                FileDownloadDeleteAction(Pop3Client_[ThreadsDownload_], null, cancel);
                             }
                             Pop3Client_[I].Disconnect(true, cancel.Token);
-                        }            
+                        }
                         Pop3Client_[I].Dispose();
                     }
                     if (ImapClient_[I] != null)
@@ -667,13 +806,13 @@ namespace BackupToMail
                         if (ImapClient_[I].IsConnected)
                         {
                             if ((FileDeleteMode_ != FileDeleteMode.None) && (I == ThreadsDownload_))
-                            {    
-                                FileDownloadDeleteAction(ImapClient_Inbox_[ThreadsDownload_], cancel);
+                            {
+                                FileDownloadDeleteAction(null, ImapClient_Inbox_[ThreadsDownload_], cancel);
                             }
                             if (ImapClient_Inbox_[I].IsOpen)
                             {
                                 if (FileDeleteMode_ != FileDeleteMode.None)
-                                {    
+                                {
                                     ImapClient_Inbox_[I].Close(true, cancel.Token);
                                 }
                                 else
@@ -691,18 +830,18 @@ namespace BackupToMail
                 Console_WriteLine("Account " + Account + " - disconnected");
 
             }
-            
+
             MailAccountList[Account].DownloadMin_ = IdxMin___;
             MailAccountList[Account].DownloadMax_ = IdxMax___;
         }
 
 
 
-        public static void FileDownloadMsg(ref List<MailRecvParam> MRP, MailFile MF, ref int FileSegmentProgress, int FileSegmentCount)
+        public static void FileDownloadMsg(ref List<MailRecvParam> MRP, MailFile[] MF, ref int[] FileSegmentProgress, int[] FileSegmentCount, int[] FileSegmentCountA)
         {
             Stopwatch_ SW = new Stopwatch_();
             long TotalSize = 0;
-            
+
             List<Thread> Thr = new List<Thread>();
 
             for (int I = 0; I < MRP.Count; I++)
@@ -710,12 +849,14 @@ namespace BackupToMail
                 MailRecvParam MRP_ = MRP[I];
                 if (MRP.Count > 1)
                 {
+                    MRP_.ThreadNo = Thr.Count + 1;
                     Thread Thr_ = new Thread(() => FileDownloadMsgThr(MRP_, MF));
                     Thr_.Start();
                     Thr.Add(Thr_);
                 }
                 else
                 {
+                    MRP_.ThreadNo = 1;
                     FileDownloadMsgThr(MRP_, MF);
                 }
             }
@@ -726,24 +867,39 @@ namespace BackupToMail
             CleanUp();
             for (int I = 0; I < MRP.Count; I++)
             {
-                if (MRP[I].Good)
+                if (MRP[I].Good & (!MRP[I].DuplicateInOtherThr))
                 {
                     TotalSize = TotalSize + ((long)(HexToInt(MRP[I].MsgInfo.Split(InfoSeparatorC)[4]) + 1));
-                    FileSegmentProgress++;
+                    FileSegmentProgress[MRP[I].FileI]++;
                 }
             }
-            
-            Console_WriteLine("Download progress: " + FileSegmentProgress + "/" + FileSegmentCount);
+
+            long GetDataSizeSum = 0;
+            long GetDataSizeSegSum = 0;
+            int FileSegmentProgressSum = 0;
+            int FileSegmentCountSum = 0;
+            for (int i = 0; i < MF.Length; i++)
+            {
+                GetDataSizeSum += MF[i].GetDataSize();
+                GetDataSizeSegSum += MF[i].GetDataSizeSeg();
+                FileSegmentProgressSum += FileSegmentProgress[i];
+                FileSegmentCountSum += FileSegmentCount[i];
+                FileSegmentCountSum -= FileSegmentCountA[i];
+            }
+            Console_WriteLine("Download progress: " + FileSegmentProgressSum + "/" + FileSegmentCountSum);
             Console_WriteLine("Download speed: " + KBPS(TotalSize, SW.Elapsed()));
-            Log(TSW.Elapsed().ToString(), LogDiffS(FileSegmentProgress).ToString(), FileSegmentProgress.ToString(), FileSegmentCount.ToString(), LogDiffB(KBPS_Bytes).ToString(), KBPS_B(), MF.GetDataSize().ToString(), MF.GetDataSizeSeg().ToString());
+            Log(TSW.Elapsed().ToString(), LogDiffS(FileSegmentProgressSum).ToString(), FileSegmentProgressSum.ToString(), FileSegmentCountSum.ToString(), LogDiffB(KBPS_Bytes).ToString(), KBPS_B(), GetDataSizeSum.ToString(), GetDataSizeSegSum.ToString());
         }
 
-        public static void FileDownloadMsgThr(MailRecvParam MRP_, MailFile MF)
+        public static void FileDownloadMsgThr(MailRecvParam MRP_, MailFile[] MF)
         {
-            MRP_.Good = false;
+            if (MRP_.Good)
+            {
+                return;
+            }
 
             string[] MsgInfo__ = MRP_.MsgInfo.Split(InfoSeparatorC);
-            string ConsoleInfo = CreateConsoleInfoD(MRP_.Account, MRP_.Idx, MRP_.MsgCount, MsgInfo__);
+            string ConsoleInfo = CreateConsoleInfoD(MRP_.Account, MRP_.Idx, MRP_.MsgCount, MRP_.FileI, MsgInfo__) + " - thread " + MRP_.ThreadNo.ToString();
             string DownCheck = "";
             if ((MRP_.FileDownloadMode_ == FileDownloadMode.Download) || (MRP_.FileDownloadMode_ == FileDownloadMode.DownloadDigest))
             {
@@ -755,57 +911,117 @@ namespace BackupToMail
             }
             Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " started");
             string MsgInfo_ = "";
-            bool Reconnect = MRP_.Reconnect;
-            byte[] RawData = MailReceive(MRP_.Account, MRP_.ImapClient_Inbox_, MRP_.Pop3Client_, MRP_.Idx, out MsgInfo_, ref Reconnect, MRP_.cancel);
-            MRP_.Reconnect = Reconnect;
+
+            int ErrorType = 0;
+            byte[] RawData = MailReceive(ConsoleInfo, DownCheck, MRP_.Account, MRP_.ImapClient_Inbox_, MRP_.Pop3Client_, MRP_.Idx, out MsgInfo_, ref ErrorType, MRP_.cancel);
 
             if (RawData == null)
             {
-                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: not found");
-                if ((MRP_.FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
+                MRP_.Reconnect = false;
+                MRP_.ToDelete = false;
+                switch (ErrorType)
                 {
-                    MRP_.ToDelete = true;
+                    case 1:
+                        {
+                            if (MRP_.AttemptUndownloadable < DownloadRetry)
+                            {
+                                MRP_.AttemptUndownloadable++;
+                                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: data undownloadable, retry " + MRP_.AttemptUndownloadable.ToString() + "/" + DownloadRetry.ToString());
+                                MRP_.Reconnect = true;
+                            }
+                            else
+                            {
+                                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: data undownloadable");
+                                if ((MRP_.FileDeleteMode_ & FileDeleteMode.Undownloadable) == FileDeleteMode.Undownloadable)
+                                {
+                                    MRP_.ToDelete = true;
+                                }
+                            }
+                        }
+                        break;
+                    case 2:
+                        {
+                            if (MRP_.AttemptBad < DownloadRetry)
+                            {
+                                MRP_.AttemptBad++;
+                                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: bad data, retry " + MRP_.AttemptBad.ToString() + "/" + DownloadRetry.ToString());
+                                MRP_.Reconnect = true;
+                            }
+                            else
+                            {
+                                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: bad data");
+                                if ((MRP_.FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
+                                {
+                                    MRP_.ToDelete = true;
+                                }
+                            }
+                        }
+                        break;
+                    case 3:
+                        {
+                            Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: no reference to connection");
+                            MRP_.Reconnect = true;
+                        }
+                        break;
                 }
                 return;
             }
-            
+
             if (MRP_.MsgInfo != MsgInfo_)
             {
                 Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: instance mismatch");
                 MRP_.Reconnect = true;
                 return;
             }
-            
+
             int SegmentSize = HexToInt(MsgInfo__[4]) + 1;
             int SegmentNum = HexToInt(MsgInfo__[2]);
-            
+
             if (RawData.Length < SegmentSize)
             {
-                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: data segment too short");
-                if ((MRP_.FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
+                if (MRP_.AttemptBad < DownloadRetry)
                 {
-                    MRP_.ToDelete = true;
+                    MRP_.AttemptBad++;
+                    Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: data segment too short, retry " + MRP_.AttemptBad.ToString() + "/" + DownloadRetry.ToString());
+                    MRP_.Reconnect = true;
+                }
+                else
+                {
+                    Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: data segment too short");
+                    if ((MRP_.FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
+                    {
+                        MRP_.ToDelete = true;
+                    }
                 }
                 return;
             }
 
             if (DigestClear(MsgInfo__[6]) != Digest(RawData, SegmentSize))
             {
-                Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: bad digest");
-                if ((MRP_.FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
+                if (MRP_.AttemptBad < DownloadRetry)
                 {
-                    MRP_.ToDelete = true;
+                    MRP_.AttemptBad++;
+                    Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: bad digest, retry " + MRP_.AttemptBad.ToString() + "/" + DownloadRetry.ToString());
+                    MRP_.Reconnect = true;
+                }
+                else
+                {
+                    Console_WriteLine_Thr(ConsoleInfo + " - " + DownCheck + " error: bad digest");
+                    if ((MRP_.FileDeleteMode_ & FileDeleteMode.Bad) == FileDeleteMode.Bad)
+                    {
+                        MRP_.ToDelete = true;
+                    }
                 }
                 return;
             }
-            
+
             Monitor.Enter(MF);
             if ((MRP_.FileDownloadMode_ == FileDownloadMode.CompareBody) || (MRP_.FileDownloadMode_ == FileDownloadMode.CompareBodyDigest))
             {
-                if (MF.MapGet(SegmentNum) == 0)
+                if (MF[MRP_.FileI].MapGet(SegmentNum) == 0)
                 {
                     bool Good_ = true;
-                    byte[] RawDataX = MF.DataGet(SegmentNum);
+                    byte[] RawDataX = MF[MRP_.FileI].DataGet(SegmentNum);
                     if (MRP_.FileDownloadMode_ == FileDownloadMode.CompareBodyDigest)
                     {
                         byte[] RawDataDigest = StrToBin(Digest(RawData));
@@ -833,10 +1049,10 @@ namespace BackupToMail
                             }
                         }
                     }
-                    
+
                     if (Good_)
                     {
-                        MF.MapSet(SegmentNum, 1);
+                        MF[MRP_.FileI].MapSet(SegmentNum, 1);
                         Console_WriteLine_Thr(ConsoleInfo + " - check finished - good");
                     }
                     else
@@ -851,6 +1067,7 @@ namespace BackupToMail
                 else
                 {
                     Console_WriteLine_Thr(ConsoleInfo + " - duplicate in other thread");
+                    MRP_.DuplicateInOtherThr = true;
                     if ((MRP_.FileDeleteMode_ & FileDeleteMode.Duplicate) == FileDeleteMode.Duplicate)
                     {
                         MRP_.ToDelete = true;
@@ -859,14 +1076,15 @@ namespace BackupToMail
             }
             if (MRP_.FileDownloadMode_ == FileDownloadMode.CheckExistBody)
             {
-                if (MF.MapGet(SegmentNum) == 0)
+                if (MF[MRP_.FileI].MapGet(SegmentNum) == 0)
                 {
-                    MF.MapSet(SegmentNum, 1);
+                    MF[MRP_.FileI].MapSet(SegmentNum, 1);
                     Console_WriteLine_Thr(ConsoleInfo + " - check finished - good");
                 }
                 else
                 {
                     Console_WriteLine_Thr(ConsoleInfo + " - duplicate in other thread");
+                    MRP_.DuplicateInOtherThr = true;
                     if ((MRP_.FileDeleteMode_ & FileDeleteMode.Duplicate) == FileDeleteMode.Duplicate)
                     {
                         MRP_.ToDelete = true;
@@ -875,15 +1093,16 @@ namespace BackupToMail
             }
             if ((MRP_.FileDownloadMode_ == FileDownloadMode.Download) || (MRP_.FileDownloadMode_ == FileDownloadMode.DownloadDigest))
             {
-                if (MF.MapGet(SegmentNum) == 0)
+                if (MF[MRP_.FileI].MapGet(SegmentNum) == 0)
                 {
-                    MF.DataSet(SegmentNum, RawData, SegmentSize);
-                    MF.MapSet(SegmentNum, 1);
+                    MF[MRP_.FileI].DataSet(SegmentNum, RawData, SegmentSize);
+                    MF[MRP_.FileI].MapSet(SegmentNum, 1);
                     Console_WriteLine_Thr(ConsoleInfo + " - download finished");
                 }
                 else
                 {
                     Console_WriteLine_Thr(ConsoleInfo + " - duplicate in other thread");
+                    MRP_.DuplicateInOtherThr = true;
                     if ((MRP_.FileDeleteMode_ & FileDeleteMode.Duplicate) == FileDeleteMode.Duplicate)
                     {
                         MRP_.ToDelete = true;
@@ -893,30 +1112,32 @@ namespace BackupToMail
             Monitor.Exit(MF);
 
             MRP_.Good = true;
+            MRP_.Reconnect = false;
         }
 
-        
-        
+
+
         static Stopwatch_ TSW;
-        
-        public static void FileDownload(string FileName, string FilePath, string FileMap, int[] Account, int[] IdxMin, int[] IdxMax, FileDownloadMode FileDownloadMode_, FileDeleteMode FileDeleteMode_)
+
+        public static void FileDownload(int FileCount, string[] FileName, string[] FilePath, string[] FileMap, int[] Account, int[] IdxMin, int[] IdxMax, FileDownloadMode FileDownloadMode_, FileDeleteMode FileDeleteMode_, bool FileDownloadReverseOrder)
         {
             if (Account.Length == 0)
             {
                 Console_WriteLine("No accounts");
                 return;
             }
-            
+
             int[] IdxMin_ = new int[IdxMin.Length];
             int[] IdxMax_ = new int[IdxMax.Length];
-            MailFile MF = new MailFile();
-            if (FileDownloadMode_ == FileDownloadMode.CheckExistHeader)
+            MailFile[] MF = new MailFile[FileCount];
+            bool[] MF_Open = new bool[FileCount];
+            for (int i = 0; i < FileCount; i++)
             {
-                FilePath = null;
-            }
-            if (FileDownloadMode_ == FileDownloadMode.CheckExistBody)
-            {
-                FilePath = null;
+                MF[i] = new MailFile();
+                if ((FileDownloadMode_ == FileDownloadMode.CheckExistHeader) || (FileDownloadMode_ == FileDownloadMode.CheckExistBody))
+                {
+                    FilePath[i] = null;
+                }
             }
 
             bool _Digest = false;
@@ -927,43 +1148,67 @@ namespace BackupToMail
             _NotDownload = _NotDownload && (FileDownloadMode_ != FileDownloadMode.Download);
             _NotDownload = _NotDownload && (FileDownloadMode_ != FileDownloadMode.DownloadDigest);
 
-            if (MF.Open(_Digest, _NotDownload, FilePath, FileMap))
+            bool OpenAll = true;
+            for (int i = 0; i < FileCount; i++)
+            {
+                MF_Open[i] = MF[i].Open(_Digest, _NotDownload, FilePath[i], FileMap[i]);
+                if (!MF_Open[i])
+                {
+                    OpenAll = false;
+                }
+            }
+            if (OpenAll)
             {
                 Log("");
                 LogReset();
                 Log("Time stamp", "Downloaded segments since previous entry", "Totally downloaded segments", "All segments", "Downloaded bytes since previous entry", "Totally downloaded bytes", "All bytes by segment count", "All bytes by file size");
                 TSW = new Stopwatch_();
                 KBPSReset();
-                MF.MapChange(1, 2);
+
+                for (int i_ = 0; i_ < FileCount; i_++)
+                {
+                    MF[i_].MapChange(1, 2);
+                }
                 for (int i = 0; i < Account.Length; i++)
                 {
-                    MF.MapCalcStats();
-                    if ((MF.MapCount(0) > 0) || (MF.GetSegmentCount() == 0))
+                    bool FileGood = true;
+                    for (int i_ = 0; i_ < FileCount; i_++)
+                    {
+                        MF[i_].MapCalcStats();
+                        if ((MF[i_].MapCount(0) <= 0) && (MF[i_].GetSegmentCount() != 0))
+                        {
+                            FileGood = false;
+                        }
+                    }
+                    if (FileGood)
                     {
                         MailAccountList[Account[i]].DownloadMin = IdxMin[i];
                         MailAccountList[Account[i]].DownloadMax = IdxMax[i];
-                        FileDownloadAccount(Account[i], FileDownloadMode_, FileDeleteMode_, FileName, ref MF);
+                        FileDownloadAccount(Account[i], FileDownloadReverseOrder, FileDownloadMode_, FileDeleteMode_, FileName, ref MF);
                         IdxMin_[i] = MailAccountList[Account[i]].DownloadMin_ + 1;
                         IdxMax_[i] = MailAccountList[Account[i]].DownloadMax_ + 1;
                     }
                 }
-                Log("");
-
-                MF.MapCalcStats();
-                Console_WriteLine("");
                 ConsoleLineToLog = true;
-                Console_WriteLine("Total segments: " + MF.GetSegmentCount().ToString());
-                if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
+                ConsoleLineToLogSum = true;
+                Console_WriteLine("");
+                for (int i_ = 0; i_ < FileCount; i_++)
                 {
-                    Console_WriteLine("Segments downloaded previously: " + MF.MapCount(2).ToString());
-                    Console_WriteLine("Segments downloaded now: " + MF.MapCount(1).ToString());
-                    Console_WriteLine("Segments not downloaded: " + MF.MapCount(0).ToString());
-                }
-                else
-                {
-                    Console_WriteLine("Segments checked previously as good: " + MF.MapCount(2).ToString());
-                    Console_WriteLine("Good segments: " + MF.MapCount(1).ToString());
-                    Console_WriteLine("Bad or missing segments: " + MF.MapCount(0).ToString());
+                    MF[i_].MapCalcStats();
+                    Console_WriteLine("Item " + (i_ + 1).ToString() + ":");
+                    Console_WriteLine(" Total segments: " + MF[i_].GetSegmentCount().ToString());
+                    if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
+                    {
+                        Console_WriteLine(" Segments downloaded previously: " + MF[i_].MapCount(2).ToString());
+                        Console_WriteLine(" Segments downloaded now: " + MF[i_].MapCount(1).ToString());
+                        Console_WriteLine(" Segments not downloaded: " + MF[i_].MapCount(0).ToString());
+                    }
+                    else
+                    {
+                        Console_WriteLine(" Segments checked previously as good: " + MF[i_].MapCount(2).ToString());
+                        Console_WriteLine(" Good segments: " + MF[i_].MapCount(1).ToString());
+                        Console_WriteLine(" Bad or missing segments: " + MF[i_].MapCount(0).ToString());
+                    }
                 }
                 Console_WriteLine("Downloaded bytes: " + KBPS_B());
                 Console_WriteLine("Download time: " + KBPS_T());
@@ -983,25 +1228,54 @@ namespace BackupToMail
                         TempInfo = TempInfo + " - not found";
                     }
                     Console_WriteLine(TempInfo);
-                    Log(TempInfo);
                 }
                 Console_WriteLine("Total time: " + TimeHMSM(TSW.Elapsed()));
+                ConsoleLineToLogSum = false;
                 ConsoleLineToLog = false;
-                Log("");
-                Log("");
-                MF.Close();
+                LogSum("");
+                LogSum("");
+                for (int i_ = 0; i_ < FileCount; i_++)
+                {
+                    MF[i_].Close();
+                }
             }
             else
             {
                 ConsoleLineToLog = true;
-                Console_WriteLine("File open error: " + MF.OpenError);
+                ConsoleLineToLogSum = false;
+                Console_WriteLine("");
+                for (int i_ = 0; i_ < FileCount; i_++)
+                {
+                    if (!MF_Open[i_])
+                    {
+                        Console_WriteLine("Item " + (i_ + 1).ToString() + " - file open error: " + MF[i_].OpenError);
+                    }
+                }
+                ConsoleLineToLogSum = false;
                 ConsoleLineToLog = false;
-                Log("");
-                Log("");
+                LogSum("");
+                LogSum("");
                 return;
             }
         }
-        
+
+
+        private static string CreateConsoleInfo_Msg1(int AccNo, int MsgIdx, int MsgCount)
+        {
+            return "Account " + AccNo.ToString() + ", message " + (MsgIdx + 1).ToString() + "/" + MsgCount.ToString() + ": ";
+        }
+
+        private static string CreateConsoleInfo_Msg2(int FileI, string[] MsgInfo)
+        {
+            if (FileI >= 0)
+            {
+                return "item " + (FileI + 1).ToString() + " - segment " + (HexToInt(MsgInfo[2]) + 1) + "/" + (HexToInt(MsgInfo[3]) + 1);
+            }
+            else
+            {
+                return "other item - segment " + (HexToInt(MsgInfo[2]) + 1) + "/" + (HexToInt(MsgInfo[3]) + 1);
+            }
+        }
 
         /// <summary>
         /// Download message prefix for file message
@@ -1011,14 +1285,14 @@ namespace BackupToMail
         /// <param name="MsgCount"></param>
         /// <param name="MsgInfo"></param>
         /// <returns></returns>
-        public static string CreateConsoleInfoD(int AccNo, int MsgIdx, int MsgCount, string[] MsgInfo)
+        public static string CreateConsoleInfoD(int AccNo, int MsgIdx, int MsgCount, int FileI, string[] MsgInfo)
         {
-            return "Account " + AccNo.ToString() + ", message " + (MsgIdx + 1).ToString() + "/" + MsgCount.ToString() + ": segment " + (HexToInt(MsgInfo[2]) + 1) + "/" + (HexToInt(MsgInfo[3]) + 1);
+            return CreateConsoleInfo_Msg1(AccNo, MsgIdx, MsgCount) + CreateConsoleInfo_Msg2(FileI, MsgInfo);
         }
 
-        public static string CreateConsoleInfoDS(int AccNo, int MsgIdx, int MsgCount, string[] MsgInfo)
+        public static string CreateConsoleInfoDS(int AccNo, int MsgIdx, int MsgCount, int FileI, string[] MsgInfo)
         {
-            return "segment " + (HexToInt(MsgInfo[2]) + 1) + "/" + (HexToInt(MsgInfo[3]) + 1);
+            return CreateConsoleInfo_Msg2(FileI, MsgInfo);
         }
 
         /// <summary>
@@ -1030,7 +1304,7 @@ namespace BackupToMail
         /// <returns></returns>
         public static string CreateConsoleInfoD(int AccNo, int MsgIdx, int MsgCount)
         {
-            return "Account " + AccNo.ToString() + ", message " + (MsgIdx + 1).ToString() + "/" + MsgCount.ToString() + ": ";
+            return CreateConsoleInfo_Msg1(AccNo, MsgIdx, MsgCount);
         }
     }
 }

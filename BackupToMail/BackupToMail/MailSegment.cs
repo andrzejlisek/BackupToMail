@@ -67,7 +67,13 @@ namespace BackupToMail
         /// Default image width in pixels
         /// </summary>
         public static int DefaultImageSize = 4096;
-        
+
+
+        public static int DownloadRetry = 5;
+
+
+        public static string NameSeparator = "";
+
         public static int UploadGroupChange = 5;
 
         public static int RandomCacheStep = 25;
@@ -85,6 +91,13 @@ namespace BackupToMail
         {
             LogFileTransfer = CF.ParamGetS("LogFileTransfer");
             LogFileMessages = CF.ParamGetS("LogFileMessages");
+            LogFileSummary = CF.ParamGetS("LogFileSummary");
+            NameSeparator = CF.ParamGetS("NameSeparator");
+            if (NameSeparator.Length > 1)
+            {
+                NameSeparator = NameSeparator.Substring(0, 1);
+            }
+
             RandomCacheStep = CF.ParamGetI("RandomCacheStepBits");
             if (RandomCacheStep <= 0)
             {
@@ -127,6 +140,12 @@ namespace BackupToMail
             {
                 DefaultImageSize = 4096;
             }
+
+            DownloadRetry = CF.ParamGetI("DownloadRetry");
+            if (DownloadRetry < 0)
+            {
+                DownloadRetry = 0;
+            }
         }
         
         /// <summary>
@@ -138,6 +157,11 @@ namespace BackupToMail
         /// Upload and download log file - messages
         /// </summary>
         public static string LogFileMessages = "";
+
+        /// <summary>
+        /// Upload and download log file - summary
+        /// </summary>
+        public static string LogFileSummary = "";
 
         /// <summary>
         /// Print general configuration
@@ -156,6 +180,7 @@ namespace BackupToMail
             Console.WriteLine("Upload threads: " + ThreadsUpload);
             Console.WriteLine("Download threads: " + ThreadsDownload);
             Console.WriteLine("Change upload account group after number of failures: " + UploadGroupChange);
+            Console.WriteLine("Number of download retries after failure: " + DownloadRetry);
             Console.WriteLine("Default segment type: " + SegmentTypeDesc[DefaultSegmentType]);
             Console.WriteLine("Default segment size: " + DefaultSegmentSize);
             Console.WriteLine("Default image size: " + DefaultImageSize + "x" + ImgHFromW(DefaultSegmentSize, DefaultImageSize));
@@ -175,6 +200,22 @@ namespace BackupToMail
             else
             {
                 Console.WriteLine("No messages log file");
+            }
+            if (LogFileSummary != "")
+            {
+                Console.WriteLine("Summary log file name: " + LogFileMessages);
+            }
+            else
+            {
+                Console.WriteLine("No summary log file");
+            }
+            if (NameSeparator.Length > 0)
+            {
+                Console.WriteLine("Name separator: " + NameSeparator[0].ToString());
+            }
+            else
+            {
+                Console.WriteLine("No name separator");
             }
         }
 
@@ -287,6 +328,7 @@ namespace BackupToMail
         /// </summary>
         public class MailSendParam
         {
+            public int FileI;
             public int Idx;
             public int AccountSrcG;
             public int AccountSrcN;
@@ -297,6 +339,7 @@ namespace BackupToMail
             public int FileSegmentNum;
             public SmtpClient[,] SmtpClient_;
             public int SmtpClientSlot;
+            public int ThreadNo;
         }
         
         /// <summary>
@@ -304,9 +347,11 @@ namespace BackupToMail
         /// </summary>
         public class MailRecvParam
         {
+            public int FileI;
             public int FileSegmentNum;
             public int Account;
             public bool Good = false;
+            public bool DuplicateInOtherThr = false;
             public string MsgInfo;
             public int Idx;
             public int MsgId;
@@ -318,11 +363,15 @@ namespace BackupToMail
             public FileDownloadMode FileDownloadMode_;
             public FileDeleteMode FileDeleteMode_;
             public bool ToDelete;
+            public bool ToDeleteFile;
+            public int ThreadNo;
+            public int AttemptUndownloadable;
+            public int AttemptBad;
         }
-        
-        
-        
-        
+
+
+
+
         /// <summary>
         /// Object used as mutex to synchronize printing to console
         /// </summary>
@@ -564,9 +613,20 @@ namespace BackupToMail
             return ChecksumS;
         }
 
+        public static byte[] DigestBin_(byte[] Src)
+        {
+            MD5 ChecksumWorker = new MD5CryptoServiceProvider();
+            return ChecksumWorker.ComputeHash(Src);
+        }
+
         public static byte[] DigestBin(byte[] Src)
         {
             return StrToBin(Digest(Src));
+        }
+
+        public static byte[] DigestBin(byte[] Src, int S)
+        {
+            return StrToBin(Digest(Src, S));
         }
 
         public static byte[] StrToBin(string Str)
@@ -688,6 +748,7 @@ namespace BackupToMail
         }
 
         public static bool ConsoleLineToLog = false;
+        public static bool ConsoleLineToLogSum = false;
 
         private static bool ConsoleLineBegin = true;
 
@@ -732,7 +793,14 @@ namespace BackupToMail
             }
             if (ConsoleLineToLog)
             {
-                Log(Str);
+                if (ConsoleLineToLogSum)
+                {
+                    LogSum(Str);
+                }
+                else
+                {
+                    Log(Str);
+                }
             }
             ConsoleLineBegin = true;
         }
@@ -832,6 +900,30 @@ namespace BackupToMail
         private static void LogMsgE(string T)
         {
             LogMsg2(T, T);
+        }
+
+        /// <summary>
+        /// Write text to log and to summary log
+        /// </summary>
+        /// <param name="T1">T1.</param>
+        public static void LogSum(string T1)
+        {
+            Log(T1);
+            if (LogFileSummary != "")
+            {
+                try
+                {
+                    FileStream FS = new FileStream(LogFileSummary, FileMode.Append, FileAccess.Write);
+                    StreamWriter SW = new StreamWriter(FS);
+                    SW.WriteLine(TimestampNow() + "\t" + T1);
+                    SW.Close();
+                    FS.Close();
+                }
+                catch
+                {
+
+                }
+            }
         }
 
         /// <summary>

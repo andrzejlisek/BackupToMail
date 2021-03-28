@@ -1,14 +1,15 @@
 # BackupToMail overwiev
 
-This application is a command\-line application, which allows to upload any large file to any mailbox by splitting to segments\. Unlike Peer2Mail file sharing technology, there are some differences comparing to ordinary P2M applications:
+This application is a command\-line application, which allows to upload any large file to any e\-mail account by splitting to segments\. Unlike Peer2Mail file sharing technology, there are some differences comparing to ordinary P2M applications:
 
 
-* BackupToMail is intended to keep own data \(like backup\) in the own mailboxex\.
+* BackupToMail is intended to keep own data \(like backup\) on the own accounts\.
 * BackupToMail does not generate hash information, so it is not intended to share your files to untrusted people and there is not data lose risk by losing hash information\.
 * BackupToMail does not support in creating e\-mail accounts \(some P2M application can automatically create free of charge accounts on some servers\)\.
-* BackupToMail can support any mailbox by POP3 or IMAP protocol to download file, and SMTP protocol to upload file\.
+* BackupToMail can support any account by POP3 or IMAP protocol to download file, and SMTP protocol to upload file, other protocols are not supported\.
 * BackupToMail works in console, so you can use it through text terminal connection \(telnet or ssh\) and you can execute download or upload from other application\.
 * The message structure and upload/download technology is simple and easy to reproduce\.
+* Dummy file feature \(simulating file without physical disk file\), which can be used to test account abilities in large file uploading or downloading, especially transfer speed and limits\.
 
 If you run application without parameters or with unsupported action parameter, the application will print short description of command line syntax\. The action parameter is the first parameter and there is not case\-sensitive\.
 
@@ -23,13 +24,16 @@ The general settings in **Config\.txt** file are following:
 
 * **ThreadsUpload** \- Number of simultaneous threads used in uploading \(default 1\)\.
 * **ThreadsDownload** \- Number of simultaneous threads used in downloading \(default 1\)\.
-* **UploadGroupChange** \- Number of upload errors, after which the grooup of sending mailboxes will be changed to the nest group \(default 5\)\.
+* **UploadGroupChange** \- Number of upload errors, after which the group of sending accounts will be changed to the nest group \(default 5\)\.
+* **DownloadRetry** \- Number of retries to download the same message after download failure and reconnection\.
 * **DefaultSegmentType** \- Segment type when segment type is not specified in upload command \(default 0\)\.
 * **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default 16777216 = 16MB\)\.
 * **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default 4096\)\.
 * **RandomCacheStepBits** \- Number of bits to specify caching period in generating the dummy file contents \(default 25, which means 32MB\)\.
-* **LogFileTransfer** \- If set, the transfer information \(uploading and downloading segments\) will be recorded into the file \.
+* **LogFileTransfer** \- If set, the transfer information \(uploading and downloading segments\) will be recorded into the file\.
 * **LogFileMessages** \- If set, the transfer information \(all printed messages\) will be recorded into the file\.
+* **LogFileSummary** \- If set, the transfer summary \(parameters and result\) will be recorded into the file\.
+* **NameSeparator** \- The character, which will used as sepatator of multiple file names and item names\. If not set, the transfer of multiple files once is not possible\. If the value is longer than one character, only the first character will be used\.
 
 When parameter is not set or has incorrect value, the default value will be used\.
 
@@ -52,9 +56,9 @@ The parameters for account 0 are following:
 * **Mail0Pop3Host** \- POP3 host address\.
 * **Mail0Pop3Port** \- POP3 port number\.
 * **Mail0Pop3Ssl \(0/1\)** \- SSL usage on POP3 connection\.
-* **Mail0Pop3Use \(0/1\)** \- Use POP3 instead of IMAP when download\. In is recommended to use IMAP protocol, but in some mailboxex POP3 can be more reliable\.
+* **Mail0Pop3Use \(0/1\)** \- Use POP3 instead of IMAP for download\. In is recommended to use IMAP protocol, but in some accounts POP3 can be more reliable\.
 * **Mail0SmtpConnect \(0/1\)** \- Connect to SMTP server of this account directly before sending mail and disconnect after mail sending\. It can solve problems, which exists while sending several messages during one connection or if there is problem with reaining SMTP connection\.
-* **Mail0DeleteIdx \(0/1\)** \- Delete index after deleting message\. Some mailboxes may delete item from index immediatelly after marking a message to delete, the other mailboxes may not delete item from index even if IMAP protocol us used\. Usually, the item is not deleted immediatelly after deleting message, the index is valid until disconnect from the mailbox\. You have to experimentally detech, which valued of the setting is appropriate for certain mailbox\.
+* **Mail0DeleteIdx \(0/1\)** \- Delete index after deleting message\. Some accounts may delete item from index immediatelly after marking a message to delete, the other accounts may not delete item from index even if IMAP protocol us used\. Usually, the item is not deleted immediatelly after deleting message, the index is valid until disconnect from the account\. You have to experimentally detect, which valued of the setting is appropriate for certain account\.
 
 The parameters indicated as **0/1** can have only **0** \(false\) or **1** \(true\) value\. The default value \(if parameter is not provided\) is **0**\. The account 1 has the same parameters, but with **Mail1** prefix istead of **Mail0** prefix\. Configuration is loaded as iterated loop while **Mail\_Address** is not blank\.
 
@@ -94,7 +98,7 @@ You can test SMTP, IMAP and POP3 connection while configuration printing:
 BackupToMail CONFIG 1,2,4 1
 ```
 
-You can also test connection without configuration details to check if all accounts are available and see all connectionfailures at first glance\.
+You can also test connection without configuration details to check if all accounts are available and see all connection failures at first glance\.
 
 ```
 BackupToMail CONFIG 1,2,4 2
@@ -137,6 +141,76 @@ In some cases, especially after download or cheching, the map file size may be l
 
 To simplify, actions will be described by supposing that the map file exists and consists of the same number of bytes, as the number of file segments\.
 
+## Dummy map file
+
+You can use map file without real map file by providing blank name as **""** or slash **"/"** as map file name\. Such map will be treated as regular map file filled in with **0** characters only, which forces to process all segments\.
+
+## Map file information
+
+Large map file is difficult to analyze manually\. You can count good and bad segments using the following parameters\.
+
+
+* **MAP word** \- Print map file information
+* **File and print mode** \- One of file and display modes:
+  * **0** \- Data file or dummy file, print full information
+  * **1** \- Digest file, print full information
+  * **2** \- Data file or dummy file, print brief information
+  * **3** \- Digest file, print brief information
+* **Data file name or digest file name** \- File name, in **0** or **2** mode, you can use dummy file definition
+* **Segment size** \- Optional parameter used in **0** or **2** mode\. If ommited, the default segment size will be used\. For digest file \(mode **1** or **3**\), the segment size will be read from digest file\.
+
+In 2 and 3 modes, there will be printed the following information in one line per file in the following order
+
+
+* Data file name or digest file name\.
+* Slash character\.
+* Map file name\.
+* Four numbers of segments in this order:
+  * Total\.
+  * Good previously\.
+  * Good\.
+  * Bad\.
+
+To display information about **file\.map** file related to **file\.zip**, you can run such command:
+
+```
+BackupToMail MAP 0 "D:\file.zip" "D:\file.map"
+```
+
+The only important thing about data file is file size and segment size\. In the command above, the default segment size will be used\. You can use custom segment size to calculate number of segments\.
+
+```
+BackupToMail MAP 0 "D:\file.zip" "D:\file.map" 1000000
+```
+
+You can use dummy file definition, if you know file size, in this example, the size of simulated file is 500000000 bytes:
+
+```
+BackupToMail MAP 0 "*500000000,2,," "D:\file.map" 1000000
+```
+
+The file contents are not important, so you can use any valid dummy file definition with desired size\. The only important is the number of segments of data file, so the following command will give the same result as above command:
+
+```
+BackupToMail MAP 0 "*500,2,," "D:\file.map" 1
+```
+
+If you have digest file named **file\.dig**, you can use id to read map file:
+
+```
+BackupToMail MAP 1 "D:\file.dig" "D:\file.map"
+```
+
+In this case, the segment size and number of segments will be read from the digest file, even, if you provide custom segment size\.
+
+If the **NameSeparator** in **Config\.txt** is set, you can print information about more than one file at once command, when you set multiple data/digest files and map files\. If you assume, that the **NameSeparator** character is **&#124;**, you can print information about three files by such command:
+
+```
+BackupToMail MAP 0 "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map"
+```
+
+The separator character can not be used in item or file name\. Otherwise, you have to change this character in **Config\.txt** and use it in command\. Every list should consist of the same items\. If not, the number of uploaded files will equal with the number of item of the shortest list\. The further items on other lists will be ignored\.
+
 # Uploading file
 
 To upload file, you have to access to at least one account with SMTP server and define destination accounts\. The destination account can be the same as the source account\. Before uploading file, it is highly recommended to:
@@ -145,7 +219,40 @@ To upload file, you have to access to at least one account with SMTP server and 
 * Turn off spam filter on all your destination accounts or configure spam filter bypass for messages sent from adresses of every your source account\.
 * Turn off body modifiers such as signature footer when you want to upload as Base64 or PNG image in body, without attachment\.
 * Turn off autoresponder on every destination account if such service is on\.
-* Encrypt file or archive, the BackupToMail does not support encryption, there are several archive formats, which supports encryption, such as ZIP, 7Z and RAR\.
+* Encrypt file or archive, the BackupToMail does not support encryption, there are many archive file formats, which supports encryption, such as ZIP, 7Z and RAR\.
+
+## File name remarks
+
+Some operating system allows to use the **\*** character \(asterisk\) in file name, but BackupToMail interprets file name starting with **\*** as dummy file \(described separately\)\. You can upload file, which name starts with **\*** by on of the ways:
+
+
+* Rename file name\.
+* Create symbolic link do the file, which name not starts with **\*** and use it instead of file\.
+* Provide file name with another path to achieve path not starting with **\***\.
+
+Examples of names, which will be interpreted as dummy file and will raise error:
+
+
+* \*file\.zip
+* \*docs/file\.zip
+
+Examples of names, which will be interpreted as regular file and you do not have to rename file or create symbolic link:
+
+
+* file\*\.zip
+* f\*ile\.zip
+* /home/user/docs/\*file\.zip
+* \.\./\*file\.zip
+
+## Minimum account configuration
+
+To perform upload, for every source account, there are used the following parameters: **Mail\_Login**, **Mail\_Password**, **Mail\_SmtpHost**, **Mail\_SmtpPort**, **Mail\_SmtpSsl**, **Mail\_SmtpConnect**
+
+The last four parameters are usually common for every account on the same server\.
+
+For each destination account, there are used the one parameter only: **Mail\_Address**
+
+Other parameters are not used for upload\.
 
 ## Performing upload
 
@@ -204,6 +311,18 @@ Upload **file with spaces\.zip** using **file with spaces\.map** as map file, sa
 BackupToMail UPLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 0 0 1000000 2
 ```
 
+## Upload several files at once
+
+If the **NameSeparator** in **Config\.txt** is set, you can upload more than one file at once command, when you set multiple item names, data files and map files\. If you assume, that the **NameSeparator** character is **&#124;**, you can upload three files by such command:
+
+```
+BackupToMail UPLOAD "File1|File2|File3" "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map" 0 0
+```
+
+The separator character can not be used in item or file name\. Otherwise, you have to change this character in **Config\.txt** and use it in command\. Every list should consist of the same items\. If not, the number of uploaded files will equal with the number of item of the shortest list\. The further items on other lists will be ignored\.
+
+The files will be uploaded sequentially, so, there is not substantial difference between using one command to upload several files and using several commands to upload one file per one command\.
+
 ## Upload principle
 
 BackupToMail will upload only this segments, which are provided to upload against map file\. To upload whole file, be sure, that provided map file not exists or consists of **0** characters only\.
@@ -214,13 +333,105 @@ The number of segments of whole file is calculated based on data file size and o
 
 While every segment of the threads upload failed, the application will change source account assignment from the same group and repeat upload attemp\. If some of all segments was uploaded, there will be read only as number of the segments as number of threads subtracted with number of upload failed segments\. Every failed upload will cause upload attemp repeat \(with changing source account assignment from the same group\) until such segment will be successfully uploaded\.
 
-The account group will be changed after certain number of failures in serie, which is specified as **UploadGroupChange** value \(if not specified, the default is 5\)\. If none of account is available due to reach sending limits or internet connection break, this uploading attemps will repeaded infinitely, until sending limits on account is reset in at least of one account and internet connection is recovered\. Grouping the sending account may reduce the upload transfer obstruction caused by transfer limit per account\. Such limit exists very often in the free of charge mailboxes and are specified as certain number of messages per one hour or one day\.
+The account group will be changed after certain number of failures in serie, which is specified as **UploadGroupChange** value \(if not specified, the default is 5\)\. If none of account is available due to reach sending limits or internet connection break, this uploading attemps will repeaded infinitely, until sending limits on account is reset in at least of one account and internet connection is recovered\. Grouping the sending account may reduce the upload transfer obstruction caused by transfer limit per account\. Such limit exists very often in the free of charge accounts and are specified as certain number of messages per one hour or one day\.
 
 After iteration of last segment, there will be performed uploading all not uploaded segment by the same way as uploading segment during iteration through segments\. It is no possible, that this action is end before uploading all segments\. Eventually, you can break this action by killing the BackupToMail process, the uploaded segments already will be denoted as **1** character in map file\.
 
 # Downloading or checking file
 
 To download or check file, you have to access to at least one account with IMAP or POP3 server, which keeps uploaded file\. Both actions uses the same mechanism with slightly work differences\. During downloading or checking it is possible deletion of specified kind of messages\.
+
+## File name remarks
+
+Some operating system allows to use the **\*** character \(asterisk\) in file name, but BackupToMail interprets file name starting with **\*** as dummy file \(described separately\)\. You can upload file, which name starts with **\*** by on of the ways:
+
+
+* Rename file name\.
+* Create symbolic link do the file, which name not starts with **\*** and use it instead of file\.
+* Provide file name with another path to achieve path not starting with **\***\.
+
+Examples of names, which will be interpreted as dummy file and will raise error:
+
+
+* \*file\.zip
+* \*docs/file\.zip
+
+Examples of names, which will be interpreted as regular file and you do not have to rename file or create symbolic link:
+
+
+* file\*\.zip
+* f\*ile\.zip
+* /home/user/docs/\*file\.zip
+* \.\./\*file\.zip
+
+## Minimum account configuration
+
+To perform download, for each account containing file segments, there are used the following parameters: **Mail\_Login**, **Mail\_Password**, **Mail\_Pop3Use**\.
+
+Apart from parameters mentioned above, there are other parameters, which usage depends on **Mail\_Pop3Use** parameter\. The following parameters are usually common for every account on the same server\.
+
+
+* For **Mail\_Pop3Use=0**, there are used this parameters: **Mail\_ImapHost**, **Mail\_ImapPort**, **Mail\_ImapSsl**\.
+* For **Mail\_Pop3Use=1**, there are used this parameters: **Mail\_Pop3Host**, **Mail\_Pop3Port**, **Mail\_Pop3Ssl**\.
+* When you perform deletion in any way, there also used the **Mail\_DeleteIdx** parameter\.
+
+The other parameters may used in downloading\.
+
+## Delete index test
+
+Some accounts requires **Mail\_DeleteIdx** \(the **\_** character specifies the account number, for account 0, the name of the parameter is **Mail0DeleteIdx**\) set to **0**, while all other accounts requires set to **1**\. This value depends on POP3/IMAP implementation on this account\. Usually, all accounts on the same server has the same required value for **Mail\_DeleteIdx** parameter\.
+
+
+* The **Mail\_DeleteIdx=0** means, that message deletion will not change the index until disconnection\. In the place of deleted message, there will be void item\. The iterator position and upper bound must not be changed\.
+* The **Mail\_DeleteIdx=1** means, that after message deletion, the item will be removed from the index and the index length will be decreased\. The iterator position and upper bound must be decreased by number of deleted messages\.
+
+You have to test to determine, which value of the parameter is valid for the specified account\.
+
+The recommended way is described step by step below\.
+
+### Step 1
+
+This description assumes, that the account to be tested is assigned to account 0 in **Config\.txt** file\.
+
+Set the **Mail0DeleteIdx **value to **0**\. This value means, that index item will not be removed with message deletion\.
+
+### Step 2
+
+If the account is empty, upload some test data, to get from 10 to 100 messages\. You can use the following command:
+
+```
+BackupToMail UPLOAD "test" "*50000000,2,," "" 4 4 1000000
+```
+
+This command will generate 50 messages\.
+
+### Step 3
+
+Print the account contents by the following commands:
+
+```
+BackupToMail DOWNLOAD "test" "" "" 4 1 0
+```
+
+You will get the segment order in the account\. Consider, that the segment order may not be the same as uploaded\.
+
+### Step 4
+
+Perform clearing account using the following command, obserwing the information printed to the screen:
+
+```
+BackupToMail DOWNLOAD "test" "" "" 4 1 1,2,3,4,5,6
+```
+
+### Test result
+
+If the account actually requires the same value od **Mail0DeleteIdx** as the value is set, in the **Step 4** you will get the segment list in the same order like in the **Step 3** and consider, that the **Mail0DeleteIdx** value is correct\. 
+
+If the account actually requires **Mail0DeleteIdx=1** while the parameter is set to **0**, in the **Step 4**\. you will get the segment list containing odd segments \(the 1st, 3rd, 5th and so on\) and after the last segment there will be header download error\. The message number will be a half of message count in account\. Fo this example, this error will be after 25th message, while attempt to process the 26th message\. In this case, consider, that **Mail0DeleteIdx** must be set to **1** and change value in the **Config\.txt** file\.
+
+If the account actually requires **Mail0DeleteIdx=0** while the parameter is set to **1**, in the **Step 4**, you wil get the 1st segment, but while attemping to process the 2nd segment \(which will be 1st after deletion\), ypu will get header download error\. BackupToMail will reconnect to POP3/IMAP and will again delete the first message and will get header download error\. In this case, consider, that **Mail0DeleteIdx** must be set to **0** and change value in the **Config\.txt** file\.
+
+To be sure, after **Mail0DeleteIdx **value change, repeat the test from **Step 2** to **Step 4**\.
 
 ## Performing download/check
 
@@ -233,28 +444,49 @@ To download or check file, you have to run BackupToMail with the following param
 4. **Map file path and name** \- Path and name of file, which you want to upload\. You can use the blank name or **/** character as name to not use map file\.
 5. **Source account list with item index intervals** \- Account list separated by commas, but pair of numbers separated by two dots \(**\.\.**\) or one number and two dots is interpreted as index interval filter \(see examples\)\.
 6. **Download or check mode** \- One of available modes, which uses the same principle \(some of this modes implies no whole message download\), the mode is a number from the following:
-  * **0** \- Download data file \(default mode, whis is used, if this parameter is not specified\)\.
-  * **1** \- Check existence without body control\.
-  * **2** \- Check existence with body control\.
-  * **3** \- Check the header digest using data file\.
-  * **4** \- Check the body contents using data file\.
-  * **5** \- Download digest file\.
-  * **6** \- Check the header digest using digest file\.
-  * **7** \- Check the body contents using digest file\.
+  * **0** or **10** \- Download data file \(default mode, which is used, if this parameter is not specified\)\.
+  * **1** or **11** \- Check existence without body control\.
+  * **2** or **12** \- Check existence with body control\.
+  * **3** or **13** \- Check the header digest using data file\.
+  * **4** or **14** \- Check the body contents using data file\.
+  * **5** or **15** \- Download digest file\.
+  * **6** or **16** \- Check the header digest using digest file\.
+  * **7** or **17** \- Check the body contents using digest file\.
 7. **Delete option list** \- List of values separated by commas, which indicates, which messages must be deleted \(additionaly with download/check action\):
   * **0** \- None\.
-  * **1** \- Bad\.
+  * **1** \- Bad \- after certain number of attempts in a row\.
   * **2** \- Duplicate\.
   * **3** \- This file\.
   * **4** \- Other messages\.
   * **5** \- Other files\.
+  * **6** \- Undownloadable messages \- after certain number of attempts in a row\.
 
-If item name, data file name or map file name contains spaces, you have to provide this parameter in quotation signs like "file name with spaces"\. There are some examples:
+Because the downloading or checking principle is browsing messages item by item \(information, which messages contains desired item, not exists\), BackupToMail can browse the message index in forward order or backward order\. The browsing order depends on downoad od check mode as following:
 
-Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages:
+
+* Between **0** and **7** \- forward order
+* Between **10** and **17** \- backward order
+
+The browsing order is not important in most cases\. The cases, in which browsing order affects the result or working time, are for example:
+
+
+* In the account, there exists messages with the same subject, due to uploading two different files, which has the same number of segments using the same item name\.
+* All messages containing desired item are rathet at the index beginning or ending, but you not specify message number range\.
+
+If item name, data file name or map file name contains spaces, you have to provide this parameter in quotation signs like "file name with spaces"\.
+
+There are some examples, if the order is not described, it means forward order:
+
+Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages in forward order:
 
 ```
 BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1
+```
+
+Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages in backward order:
+
+```
+BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1 10
 ```
 
 Download **File** and save as **file\.zip** without map file from account 1 with reading all messages:
@@ -311,10 +543,16 @@ Download **File** and save as **file with spaces\.zip** using **file with spaces
 BackupToMail DOWNLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 1
 ```
 
-Check, if **File** item exists on account 1 with reading all messages, in this action data file name is not used:
+Check in forward order, if **File** item exists on account 1 with reading all messages, in this action data file name is not used:
 
 ```
 BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 1
+```
+
+Check in backward order, if **File** item exists on account 1 with reading all messages, in this action data file name is not used:
+
+```
+BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 11
 ```
 
 Check, if **File** item exists on account 1 with reading all messages, delete bad and duplicate messages of this item, in this action data file name is not used:
@@ -323,10 +561,16 @@ Check, if **File** item exists on account 1 with reading all messages, delete ba
 BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 1 1,2
 ```
 
-Delete **File** item from account 1 and 2:
+Delete **File** item from account 1 and 2 in forward order:
 
 ```
 BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 1 3
+```
+
+Delete **File** item from account 1 and 2 in backward order:
+
+```
+BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 11 3
 ```
 
 Download and delete **File** item from account 1 and 2:
@@ -335,11 +579,23 @@ Download and delete **File** item from account 1 and 2:
 BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2 0 3
 ```
 
-Clear account 1 and 2:
+Clear account 1 and 2 \(the item name and file name are not important, any file will not be created and not tried to read in **1** or **11** mode\):
 
 ```
-BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 1 3,4,5
+BackupToMail DOWNLOAD File dummy / 1,2 1 3,4,5
 ```
+
+## Download several files at once
+
+If the **NameSeparator** in **Config\.txt** is set, you can download more than one file at once command, when you set multiple item names, data files and map files\. If you assume, that the **NameSeparator** character is **&#124;**, you can download three files by such command:
+
+```
+BackupToMail DOWNLOAD "File1|File2|File3" "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map" 0
+```
+
+The separator character can not be used in item or file name\. Otherwise, you have to change this character in **Config\.txt** and use it in command\. Every list should consist of the same items\. If not, the number of downloaded files will equal with the number of item of the shortest list\. The further items on other lists will be ignored\.
+
+The file will be downloaded by browsing the account, so, if you want to download several files from the same account, using one command to download several files is faster, because the account will be browser once to get all files instead of several times, everytime for each file\.
 
 ## Download principle
 
@@ -476,6 +732,87 @@ If you want to delete all existing messages from account, you have to delete map
 
 Note: If you provide several accounts, which has the same segments, the same segments in the account other as first will be treated as duplicates\. It is recommended to run with deletion only on one account at a time\.
 
+# Filling missing segments
+
+In some cases, there are possible situation, in such some of parts are missing\. Such cases can occur due to sending errors, limits or sometimes due to account errors\. In such situacion you have to reupload missing segments\. BackupToMail does not have such function, but filling can be achieved using upload and download function\.
+
+For example, assume that, there is file named **Archive**, which exists on accounts **0** and **1**, but on both accounts some segments are missing, every segment is available from at least one account\. The repairing/filling steps are described below\.
+
+## Detect missing segments
+
+At the first step, you have to get information, which segments are missing, if any segment are missing\. To do this, you have to use download function to detect, which segment exists\. There are some variants of usage depending on having the file on the disk\. If map file with given name exists, remove it\.
+
+If you do not have the file, you can use the mode 1 or 2 \(given file name does not matter, because it will not be read or written\):
+
+```
+BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 1
+BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 2
+```
+
+If you have the original file \(saved as **Archive\.zip**\), you can use the mode 3 or 4:
+
+```
+BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 4
+BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 4
+```
+
+If you have the digest file \(saved as **Archive\.dig**\), you can use the mode 6 or 7:
+
+```
+BackupToMail DOWNLOAD Archive Archive.dig Archive.map 0 7
+BackupToMail DOWNLOAD Archive Archive.dig Archive.map 0 7
+```
+
+The generated Archive\.map file will contain information, which segments of Archive exists on account 0\.
+
+## Download missing segments from another account
+
+If you have original data file on the disk, you can ship this step\. If not, and you have the same file on the another account, for example in account **1**, you have to download missing segment of the file\. Downloading whole data file is not necessary to reupload missing segments\.
+
+The map file will be modified during downloading, so you have copy the map file:
+
+```
+copy Archive.map Archive_copy.map
+```
+
+Then, tou can download missing segments using the copied map file:
+
+```
+BackupToMail DOWNLOAD Archive Archive.zip Archive_copy.map 1 0
+```
+
+If account 1 contains all missing segments, at the result you will get information, that you have all segments of the file, no missing segments\. This information is generated by analyzing map file\. The ral file will probably seem be corrupted, but this file contains only the downloaded segments, not whole data file\. If account 1 does not contain all segments, which are missing on account **0**, but you have the same file on account **2**, you can repeat download proedure on account **2**:
+
+```
+BackupToMail DOWNLOAD Archive Archive.zip Archive_copy.map 2 0
+```
+
+The segments downloaded from account 1 will not affected, the map file has information, which segments are have downloaded\.
+
+If you download all missing segments, you can remove the **Archive\_copy\.map** file\.
+
+## Reupload missing segments
+
+The last step is upload missing segments on the account 0\. you have to use the map file, which was generated at the first step:
+
+```
+BackupToMail UPLOAD Archive Archive.zip Archive.map 0 0
+```
+
+There is not matter, which account you will use to upload, the destination account is important\. If you have many segments to upload, you can use multiple accounts \(for example accounts **0** and **1**\) to reduce upload obstruction\.
+
+```
+BackupToMail UPLOAD Archive Archive.zip Archive.map 0,1 0
+```
+
+You will get the information, that all segments are uploaded, because the map file will contains all segments markered as transfered\. You can remove the **Archive\.map** and **Archive\.zip** files at the moment, the files will not needed longer\.
+
+You can check if really all segments egists using on of download/checking functions such as:
+
+```
+BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 2
+```
+
 # Message structure
 
 While uploading file, BackupToMail creates serie of messages \(one email per file segment\), which has specified subject and contains a file segment data\.
@@ -525,7 +862,27 @@ The message is similar to PNG image attachment, but the message does not contain
 
 # Dummy file
 
-For the test purposes, you can use the dummy file, which is not real disk file, but it acts as same as real disk file in exception of that this file is read\-only and attempt to save to this file does not raise error\. It can be use to test transfer or store very large files without generating the real file on the disk\. The content of the file is computed by simple generators, in most cases the content are similar to pseudo\-random values\. To use dummy file, input dummy file parameters in place of the data file name\. The map file name cannot be replaced by dummy file\. The file name definition consists of the **\*** sign and has a serie of numbers separated by commas\. The parameters followed by **\*** means as following:
+For the test purposes, you can use the dummy file, which is not real disk file, but it acts as same as real disk file in exception of that this file is read\-only and attempt to save to this file does not raise error\. It can be use to test transfer or store very large files without generating the real file on the disk\. The content of the file is computed by generators, in most cases the content are similar to pseudo\-random values\. To use dummy file, input dummy file parameters in place of the data file name\. The map file name cannot be replaced by dummy file\. The file name definition consists of the **\*** sign and has a serie of parameters separated by commas\.
+
+The byte values can be generated sequentially only\. There is a reason, why the generator uses cache, which stores generator state periodically during generating values of contents\. Using the cache, generator does not have to generate values from beginning to generate file segment other than the first segment\. In the gereal settings, there is the **RandomCacheStepBits** parameter, which defines the caching period by number of bits\. If you set 25 \(default value\), the generator state will be store between every 33554432 \(32M\) values\. It is recommended to set the bits to get the value between quarter segment size and double segment size but the recommendation applying is not mandatory\. 
+
+Using the dummy file, you can test some features without managing large files, such as:
+
+
+* Upload/download speed and limit\.
+* Transfer obstruction possibility due to account limitations\.
+* Reliability of large fire storeage\.
+
+Examples of upload 1GB dummy file and check if the file is complete and correctly uploaded:
+
+```
+BackupToMail.exe UPLOAD "TestItem" "*1073741824,0,4,2,10,125,6" "TestItem.txt" 0 0
+BackupToMail.exe DOWNLOAD "TestItem" "*1073741824,0,4,2,10,125,6" "TestItem.txt" 0 4 0
+```
+
+## Linear congruential and Fibonacci generator
+
+The two generators are very fast and simple, but the length of period and value distribution strongly depends on parameters\. The parameters followed by **\*** means as following for linear congruential and fibonacci generators:
 
 
 1. **File size** \- file size in bytes\.
@@ -536,27 +893,15 @@ For the test purposes, you can use the dummy file, which is not real disk file, 
   * 1 \- use one least significant bit, use 8 values to generate one byte\.
   * 2 \- use two least significant bits, use 4 values to generate one byte\.
   * 4 \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
-  * 8 \- use whole value modulo by 256, as one byte\.
+  * 8 \- use whole value modulo by 256 as one byte\.
 4. **A constant** \- vaue used in generator\.
 5. **B constant** \- vaue used in generator\.
 6. **M constant** \- vaue used in generator\.
-7. **Initial vector** \- the vector values are the further parameters, for exaple if vector consists of 3 values, the generator has totally 9 parameters\.
+7. **Initial vector** \- the vector values are the further parameters:
+  * Linear congruential: Exactly one value\.
+  * Fibonacci: At least one value, for exaple if vector consists of 3 values, the definition has totally 9 parameters including 7 parameters for generator
 
-Examples of upload 500MB dummy file and check if the file is complete and correctly uploaded:
-
-```
-BackupToMail.exe UPLOAD "TestItem" "*500000000,1,8,3,1,257,7,16,5" "TestItem.txt" 0 0
-BackupToMail.exe DOWNLOAD "TestItem" "*500000000,1,8,3,1,257,7,16,5" "TestItem.txt" 0 4 0
-```
-
-For example, to create whole dummy file having 1000 bytes length, when **number of bits** is specified to 2, there will be generated 4000 values and sequence of foru values will be used to generate one byte\.The values can be generated sequentially only\. There is a reason, why the generator uses cache, which stores generator state periodically during generating values of contents\. Using the cache, generator does not have to generate values from beginning to generate file segment other than the first segment\. In the gereal settings, there is the **RandomCacheStepBits** parameter, which defines the caching period by number of bits\. If you set 25 \(default value\), the generator state will be store between every 33554432 \(32M\) values\. It is recommended to set the bits to get the value between quarter segment size and double segment size but the recommendation applying is not mandatory\. 
-
-Using the dummy file, you can test some features without managing large files, such as:
-
-
-* Upload and download speed\.
-* Transfer obstruction possibility due to mailbox limitations\.
-* Reliability of large fire storeage\.
+For example, to create whole dummy file having 1000 bytes length, when **number of bits** is specified to 2, there will be generated 4000 values and sequence of foru values will be used to generate one byte\.
 
 ## Linear congruential generator
 
@@ -579,6 +924,90 @@ S[n] = (S[n-A] + S[n-B]) mod M
 The first value in the vector will be forgotten, but the last value will be saved nest to the formerly last value in the vector, so the vector size does not change during calculating values, but the vector stores always last values\.
 
 Example for 1MB dummy file A=3, B=1, M=17, S=\(7,16,5\) using 4 bits of number: `*1048576,1,4,3,1,17,7,16,5`
+
+## Digest generator
+
+The digest generator has the following features comparing to linear congruential and Fibonacci generators:
+
+
+* Slower and more complex
+* Very long period
+* More uniform byte value distribution
+
+For digest generator, the parameters are as following:
+
+
+1. **File size** \- file size in bytes\.
+2. **Generator type** \- Pseudo random number generator type:
+  * 2 \- Digest
+3. **Data prefix **\- the hexadecimal representation of prefix data, it can be blank
+4. **Data suffix** \- the hexadecimal representation of suffix data, it can be blank
+
+The generator uses the MD5 digest function to generate next 16 bytes\. The argument of the first digest \(used for the first 16 bytes\) is generated by concatenation of the prefix and suffix\. The every next digest argument is generated by concatenation of prefix, previous digest and suffix\.
+
+The prefix and suffix must be blank or consist of even number of hexadecimal digits, the letter case is not important\. If you want to use blank prefix or suffix, do not put any characters as prefix or suffix\. The single digest generation iteration is used to generate 16 bytes of file\.
+
+### Digest generation examples
+
+The examples uses hexadecimal strings to representate byte strings\.
+
+Example for 1MB dummy file without prefix and suffix: `*1048576,2,,`
+
+
+* 1st 16 bytes: MD5\(`<blank>`\) = `D41D8CD98F00B204E9800998ECF8427E`
+* 2nd 16 bytes: MD5\(`D41D8CD98F00B204E9800998ECF8427E`\) = `59ADB24EF3CDBE0297F05B395827453F`
+* 3rd 16 bytes: MD5\(`59ADB24EF3CDBE0297F05B395827453F`\) = `8B8154F03B75F58A6C702235BF643629`
+
+Example for 1MB dummy file with prefix only: `*1048576,2,BAADF00D,`
+
+
+* 1st 16 bytes: MD5\(`BAADF00D`\) = `A7E0F8AC46398A7876D1E40DD52C2AAB`
+* 2nd 16 bytes: MD5\(`BAADF00DA7E0F8AC46398A7876D1E40DD52C2AAB`\) = `372210219737BC34361A8E365596FB20`
+* 3rd 16 bytes: MD5\(`BAADF00D372210219737BC34361A8E365596FB20`\) = `76A4201329BDBE905B29D8062B39E6D9`
+
+Example for 1MB dummy file with suffix only: `*1048576,2,,DEADCAFE`
+
+
+* 1st 16 bytes: MD5\(`DEADCAFE`\) = `FD8A7358D0EE3819B94DFEC2C7BFE5DA`
+* 2nd 16 bytes: MD5\(`FD8A7358D0EE3819B94DFEC2C7BFE5DADEADCAFE`\) = `EB413475E6C8E1CD808B6FD6046299E5`
+* 3rd 16 bytes: MD5\(`EB413475E6C8E1CD808B6FD6046299E5DEADCAFE`\) = `B4F09A81CC6549E346CDA9D298888D31`
+
+Example for 1MB dummy file with prefix and suffix: `*1048576,2,BAADF00D,DEADCAFE`
+
+
+* 1st 16 bytes: MD5\(`BAADF00DDEADCAFE`\) = `C21A01947540F250518FA75EBF8A93D7`
+* 2nd 16 bytes: MD5\(`BAADF00DC21A01947540F250518FA75EBF8A93D7DEADCAFE`\) = `10FE55B78559E42F4E9C0122F8EFEFDB`
+* 3rd 16 bytes: MD5\(`BAADF00D10FE55B78559E42F4E9C0122F8EFEFDBDEADCAFE`\) = `C4FA8C98A8F79383675F80570D095E0F`
+
+## \.NET internal generator
+
+This generator uses pseudo random number generator implemented in \.NET/Mono library, which is not officially described and may vary between environments \(\.NET/Mono version or operating system\)\. It uses one parameter, which is called seed\. On the same environment, you will get the same sequence everytime using desired seed\. This generator does not use cache, because there is not possible to get or set generator internal state, so is not recommended to use as dummy file while uploading or dwnloading test, it is recommended to generate disk file and use it to test\. Unlike the generators mentioned above, the number of generated byte is internally stored and generator works as following:
+
+
+* If the starting byte is next to the last generated byte or no bytes was generated, the generator will just generate the next bytes, this case occurs everytime, when you create disk file using dummy file generator\.
+* If the starting byte is further than the next to the last generated byte, the generator will generate the same number of bytes as the distance from the last byte and first desired byte without storing, followed be, there will be generated more bytes to use as dummy file fragment\.
+* If the starting byte is nearer than the next to the last generated byte, the generator will be reinitialized with the same seed and one of two above cases will occur\.
+
+For \.NET internal generator, the parameters are as following:
+
+
+1. **File size** \- file size in bytes\.
+2. **Generator type** \- Pseudo random number generator type:
+  * 3 \- \.NET internal
+3. **Generator seed **\- This parameter is optional:
+  * If exists: The seed number for generator \(from 0 to 2147483647\)\.
+  * If not exists: The cryptographic generator will be used instead of standard generator\.
+
+If the last parameter is ommited, the another algorithm will be used, which has the following features comparing to standard algorithm:
+
+
+* Higher quality of randomness\.
+* Does not use any parameters\.
+* Generated sequence can not be repeated, so this generator is not usable to use dummy file on the fly, you can only create disk file and use it\.
+
+Example for 1MB dummy file using standard algorithm: `*1048576,3,1234`
+
+Example for 1MB dummy file using cryptographic algorithm: `*1048576,3`
 
 ## Create disk file
 
@@ -671,13 +1100,13 @@ The table will have the following columns:
 7. **All bytes by segment count** \- All bytes to transfer based on number of segment, it will be greater than real file size, because usually the size of last segment is less than the size of each segment other than last\.
 8. **All bytes by file size** \- All bytes to transfer based on the current data file size\. When uploading or comparing with file, the value meets the file size\. When downloading, the file size is less than whole file size, because one segment has not the information about file size\. In such case, the all bytes value will increase during downloading segment by segment\. It will meet the real file size after downloading the last file segment\.
 
-The table is intended to easy detect transfer obstruction due to internet connection break or mailbox send limits during uploading\. To visualize transfer, you can make graph, which presents the number of transfered segments or bytes during time\.
+The table is intended to easy detect transfer obstruction due to internet connection break or reaching account upload limit during uploading\. To visualize transfer, you can make graph, which presents the number of transfered segments or bytes during time\.
 
-For exaple, using your spreadsheet application, create the chart consisting using the **Time stamp** as values of X\-axis and **Totally uploaded or downloaded segments** as Y\-axis\. It is recommended to draw the plots connected by lines\. If no transfer obstrucion was occured, the chart will have constantly increasing trend\. Othervise, each transfer obstruction will be presented as constant trent on the chart\.
+For example, using your spreadsheet application, create the chart consisting using the **Time stamp** as values of X\-axis and **Totally uploaded or downloaded segments** as Y\-axis\. It is recommended to draw the plots connected by lines\. If no transfer obstrucion was occured, the chart will have constantly increasing trend\. Othervise, each transfer obstruction will be presented as constant trent on the chart\.
 
 ## Action details and error messages
 
-The transfer log file will not contain the action details in time, including mailbox error messages, which are printed on the console\. To store such data, use messages log file\.
+The transfer log file will not contain the action details in time, including account error messages, which are printed on the console\. To store such data, use messages log file\.
 
 
 

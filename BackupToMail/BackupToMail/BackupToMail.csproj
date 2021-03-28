@@ -90,6 +90,8 @@
     <Compile Include="RandomSequence.cs" />
     <Compile Include="RandomSequenceLCG.cs" />
     <Compile Include="DigestFile.cs" />
+    <Compile Include="RandomSequenceDigest.cs" />
+    <Compile Include="RandomSequenceDotNet.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

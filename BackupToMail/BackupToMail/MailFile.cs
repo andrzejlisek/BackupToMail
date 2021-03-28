@@ -647,12 +647,12 @@ namespace BackupToMail
                         }
                     }
                     DataS.Seek(SegmentOffset, SeekOrigin.Begin);
-                    DataS.Write(MailSegment.DigestBin(SegmentData), 0, DigestSize);
+                    DataS.Write(MailSegment.DigestBin(SegmentData, SegmentDataLength), 0, DigestSize);
 
                     if (FileSize___ != DataS.Length)
                     {
                         SegmentOffset = SegmentNo;
-                        FileSize__ = (SegmentOffset * SegmentSizeL) + SegmentData.LongLength;
+                        FileSize__ = (SegmentOffset * SegmentSizeL) + (long)SegmentDataLength;
                         DataS.Seek(0, SeekOrigin.Begin);
                         SegmentData = MailSegment.StrToBin(FileSize__.ToString("X").PadLeft(16, '0'));
                         DataS.Write(SegmentData, 0, 16);

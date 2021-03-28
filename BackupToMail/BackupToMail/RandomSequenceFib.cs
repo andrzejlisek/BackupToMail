@@ -186,17 +186,9 @@ namespace BackupToMail
                     }
                     break;
             }
-            if (StatsEnabled)
-            {
-                for (int i = 0; i < SeqLen; i++)
-                {
-                    Stats[Raw[i]]++;
-                }
-            }
+
+            AddToStats(Raw);
             return Raw;
         }
-
-
-
     }
 }
