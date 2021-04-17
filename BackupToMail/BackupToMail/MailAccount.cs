@@ -21,10 +21,10 @@ namespace BackupToMail
     public class MailAccount
     {
         public bool DeleteIdx = false;
-        public int DownloadMin_ = 0;
-        public int DownloadMax_ = 0;
-        public int DownloadMin = 0;
-        public int DownloadMax = 0;
+        public int DownloadMinExists = 0;
+        public int DownloadMaxExists = 0;
+        public int DownloadMinAccount = 0;
+        public int DownloadMaxAccount = 0;
         public int MutexNo = 0;
         public string Address = "";
         public string Login = "";

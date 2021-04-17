@@ -80,7 +80,7 @@ namespace BackupToMail
 
         public static string TimestampNow()
         {
-            return DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss.fff");
+            return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         }
 
         /// <summary>
@@ -89,16 +89,16 @@ namespace BackupToMail
         /// <param name="CF"></param>
         public static void ConfigSet(ConfigFile CF)
         {
-            LogFileTransfer = CF.ParamGetS("LogFileTransfer");
-            LogFileMessages = CF.ParamGetS("LogFileMessages");
-            LogFileSummary = CF.ParamGetS("LogFileSummary");
-            NameSeparator = CF.ParamGetS("NameSeparator");
+            CF.ParamGet("LogFileTransfer", ref LogFileTransfer);
+            CF.ParamGet("LogFileMessages", ref LogFileMessages);
+            CF.ParamGet("LogFileSummary", ref LogFileSummary);
+            CF.ParamGet("NameSeparator", ref NameSeparator);
             if (NameSeparator.Length > 1)
             {
                 NameSeparator = NameSeparator.Substring(0, 1);
             }
 
-            RandomCacheStep = CF.ParamGetI("RandomCacheStepBits");
+            CF.ParamGet("RandomCacheStepBits", ref RandomCacheStep);
             if (RandomCacheStep <= 0)
             {
                 RandomCacheStep = 25;
@@ -107,9 +107,9 @@ namespace BackupToMail
             {
                 RandomCacheStep = 60;
             }
-            ThreadsUpload = CF.ParamGetI("ThreadsUpload");
-            ThreadsDownload = CF.ParamGetI("ThreadsDownload");
-            UploadGroupChange = CF.ParamGetI("UploadGroupChange");
+            CF.ParamGet("ThreadsUpload", ref ThreadsUpload);
+            CF.ParamGet("ThreadsDownload", ref ThreadsDownload);
+            CF.ParamGet("UploadGroupChange", ref UploadGroupChange);
             if (UploadGroupChange < 1)
             {
                 UploadGroupChange = 3;
@@ -123,25 +123,29 @@ namespace BackupToMail
                 ThreadsDownload = 1;
             }
 
-            DefaultSegmentType = CF.ParamGetI("DefaultSegmentType");
-            if ((DefaultSegmentType < 0) || (DefaultSegmentType > 3))
+            CF.ParamGet("DefaultSegmentType", ref DefaultSegmentType);
+            if (DefaultSegmentType < 0)
             {
                 DefaultSegmentType = 0;
             }
-            
-            DefaultSegmentSize = CF.ParamGetI("DefaultSegmentSize");
+            else
+            {
+                DefaultSegmentType = DefaultSegmentType % 20;
+            }
+
+            CF.ParamGet("DefaultSegmentSize", ref DefaultSegmentSize);
             if (DefaultSegmentSize < 1)
             {
                 DefaultSegmentSize = 16777216;
             }
-            
-            DefaultImageSize = CF.ParamGetI("DefaultImageSize");
+
+            CF.ParamGet("DefaultImageSize", ref DefaultImageSize);
             if (DefaultImageSize < 1)
             {
                 DefaultImageSize = 4096;
             }
 
-            DownloadRetry = CF.ParamGetI("DownloadRetry");
+            CF.ParamGet("DownloadRetry", ref DownloadRetry);
             if (DownloadRetry < 0)
             {
                 DownloadRetry = 0;
@@ -170,10 +174,26 @@ namespace BackupToMail
         {
             string[] SegmentTypeDesc = new string[]
             {
-                "Binary attachment",
-                "PNG image attachment",
-                "Base64 in plain text body",
-                "PNG image in HTML body"
+                "Binary attachment, ascending segment order",
+                "PNG image attachment, ascending segment order",
+                "Base64 in plain text body, ascending segment order",
+                "PNG image in HTML body, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, descending segment order",
+                "PNG image attachment, descending segment order",
+                "Base64 in plain text body, descending segment order",
+                "PNG image in HTML body, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order"
             };                
             
             Console.WriteLine("Accounts: " + MailAccountList.Count + " (from 0 to " + (MailAccountList.Count - 1) +")");

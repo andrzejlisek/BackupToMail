@@ -22,6 +22,51 @@ namespace BackupToMail
         public const string DummyFileSign = "*";
         public const int DigestSize = 32;
 
+        List<byte> MapCache = new List<byte>();
+
+        bool MapCacheSet(int SegmentNo, byte SegmentValue)
+        {
+            while (MapCache.Count <= SegmentNo)
+            {
+                MapCache.Add(10);
+            }
+            if (MapCache[SegmentNo] == SegmentValue)
+            {
+                return true;
+            }
+            MapCache[SegmentNo] = SegmentValue;
+            return false;
+        }
+
+        byte MapCacheGet(int SegmentNo)
+        {
+            if (MapCache.Count > SegmentNo)
+            {
+                return MapCache[SegmentNo];
+            }
+            else
+            {
+                return 10;
+            }
+        }
+
+        /// <summary>
+        /// Convert file name to absolute path excluding dummy file definition
+        /// </summary>
+        /// <returns>The name to path.</returns>
+        /// <param name="FileName">File name.</param>
+        public static string FileNameToPath(string FileName)
+        {
+            if (FileName.Length > 0)
+            {
+                if (!FileName.StartsWith(DummyFileSign, StringComparison.InvariantCulture))
+                {
+                    return Path.GetFullPath(FileName);
+                }
+            }
+            return FileName;
+        }
+
         /// <summary>
         /// Dummy map contents used when map file name is null
         /// </summary>
@@ -31,27 +76,27 @@ namespace BackupToMail
         /// Mutex for data file
         /// </summary>
         object DataF_ = new object();
-        
+
         /// <summary>
         /// Mutex for map file
         /// </summary>
         object MapF_ = new object();
-        
+
         /// <summary>
         /// Segment size if known
         /// </summary>
         long SegmentSizeL = 0;
-        
+
         /// <summary>
         /// Segment size if known
         /// </summary>
         int SegmentSize = 0;
-        
+
         /// <summary>
         /// Segment count if known
         /// </summary>
         int SegmentCount = 0;
-        
+
         /// <summary>
         /// Blank array used for extend data file if necessary
         /// </summary>
@@ -61,12 +106,12 @@ namespace BackupToMail
         /// One-element array used to read or write byte from/to map file
         /// </summary>
         byte[] MapValue;
-        
+
         /// <summary>
         /// Number of particular values
         /// </summary>
         int[] MapStats;
-        
+
         public MailFile()
         {
             MapValue = new byte[1];
@@ -82,12 +127,12 @@ namespace BackupToMail
         /// Data file opened as read-only
         /// </summary>
         bool ParamDataRead = false;
-        
+
         /// <summary>
         /// Data file name
         /// </summary>
         string ParamDataFile = "";
-        
+
         /// <summary>
         /// Map file name
         /// </summary>
@@ -117,6 +162,25 @@ namespace BackupToMail
 
         RandomSequence RandomSequence_;
 
+        FileStream DataOpenRW()
+        {
+            if (ParamDataRead)
+            {
+                return new FileStream(ParamDataFile, FileMode.Open, FileAccess.Read);
+            }
+            else
+            {
+                if (File.Exists(ParamDataFile))
+                {
+                    return new FileStream(ParamDataFile, FileMode.Open, FileAccess.ReadWrite);
+                }
+                else
+                {
+                    return new FileStream(ParamDataFile, FileMode.Create, FileAccess.ReadWrite);
+                }
+            }
+        }
+
         /// <summary>
         /// Open data file before operation
         /// </summary>
@@ -139,7 +203,7 @@ namespace BackupToMail
                 }
             }
         }
-        
+
         /// <summary>
         /// Open map file before operation
         /// </summary>
@@ -266,7 +330,7 @@ namespace BackupToMail
             }
             return true;
         }
-        
+
         /// <summary>
         /// Calculate number of segments based on data file length and segment size
         /// </summary>
@@ -308,7 +372,7 @@ namespace BackupToMail
             Monitor.Exit(DataF_);
             return SegmentCount;
         }
-        
+
         /// <summary>
         /// Get number of segments
         /// </summary>
@@ -317,7 +381,7 @@ namespace BackupToMail
         {
             return SegmentCount;
         }
-        
+
         /// <summary>
         /// Set number of segments arbitrary
         /// </summary>
@@ -326,7 +390,7 @@ namespace BackupToMail
         {
             SegmentCount = SegmentCount_;
         }
-        
+
         /// <summary>
         /// Set segment size
         /// </summary>
@@ -352,7 +416,7 @@ namespace BackupToMail
                 }
             }
         }
-        
+
         /// <summary>
         /// Change every occurence of certain value to another value, change from 0 is not possible
         /// </summary>
@@ -376,6 +440,7 @@ namespace BackupToMail
                         Changed = true;
                         MapValues[i] = (byte)(ValTo + 48);
                     }
+                    MapCacheSet(i, (byte)(MapValues[i] - 48));
                 }
                 if (Changed)
                 {
@@ -392,6 +457,7 @@ namespace BackupToMail
                     {
                         MapDummy[i] = ValTo;
                     }
+                    MapCacheSet(i, MapDummy[i]);
                 }
             }
             Monitor.Exit(MapF_);
@@ -406,60 +472,13 @@ namespace BackupToMail
             MapStats[0] = 0;
             MapStats[1] = 0;
             MapStats[2] = 0;
-            if (ParamMapFile != null)
+            for (int i = 0; i < SegmentCount; i++)
             {
-                FileStream MapS = MapOpen();
-                MapS.Seek(0, SeekOrigin.Begin);
-                int MapL = (int)MapS.Length;
-                if (MapL > SegmentCount)
-                {
-                    MapL = SegmentCount;
-                }
-                byte[] MapValues = new byte[MapL];
-                MapS.Read(MapValues, 0, MapL);
-                for (int i = 0; i < MapL; i++)
-                {
-                    if ((MapValues[i] >= 48) && (MapValues[i] <= 50))
-                    {
-                        MapStats[(MapValues[i] - 48)]++;
-                    }
-                    else
-                    {
-                        MapStats[0]++;
-                    }
-                }
-                if (SegmentCount > MapL)
-                {
-                    MapStats[0] = MapStats[0] + (SegmentCount - MapL);
-                }
-                MapS.Close();
-            }
-            else
-            {
-                int MapL = MapDummy.Count;
-                if (MapL > SegmentCount)
-                {
-                    MapL = SegmentCount;
-                }
-                for (int i = 0; i < MapL; i++)
-                {
-                    if ((MapDummy[i] == 0) || (MapDummy[i] == 1) || (MapDummy[i] == 2))
-                    {
-                        MapStats[MapDummy[i]]++;
-                    }
-                    else
-                    {
-                        MapStats[0]++;
-                    }
-                }
-                if (SegmentCount > MapL)
-                {
-                    MapStats[0] = MapStats[0] + (SegmentCount - MapL);
-                }
+                MapStats[MapGet_(i)]++;
             }
             Monitor.Exit(MapF_);
         }
-        
+
         /// <summary>
         /// Get number of occurences of certain value, calculated by CalcMapStats()
         /// </summary>
@@ -469,7 +488,7 @@ namespace BackupToMail
         {
             return MapStats[Value];
         }
-        
+
         /// <summary>
         /// Get map value of segment
         /// </summary>
@@ -478,6 +497,18 @@ namespace BackupToMail
         public byte MapGet(int SegmentNo)
         {
             Monitor.Enter(MapF_);
+            byte Val = MapGet_(SegmentNo);
+            Monitor.Exit(MapF_);
+            return Val;
+        }
+
+        private byte MapGet_(int SegmentNo)
+        {
+            byte CacheVal = MapCacheGet(SegmentNo);
+            if (CacheVal != 10)
+            {
+                return CacheVal;
+            }
             if (ParamMapFile != null)
             {
                 if (File.Exists(ParamMapFile))
@@ -486,7 +517,7 @@ namespace BackupToMail
                     if (MapS.Length <= SegmentNo)
                     {
                         MapS.Close();
-                        Monitor.Exit(MapF_);
+                        MapCacheSet(SegmentNo, 0);
                         return 0;
                     }
                     else
@@ -499,13 +530,13 @@ namespace BackupToMail
                             Val = (byte)(MapValue[0] - 48);
                         }
                         MapS.Close();
-                        Monitor.Exit(MapF_);
+                        MapCacheSet(SegmentNo, Val);
                         return Val;
                     }
                 }
                 else
                 {
-                    Monitor.Exit(MapF_);
+                    MapCacheSet(SegmentNo, 0);
                     return 0;
                 }
             }
@@ -514,12 +545,12 @@ namespace BackupToMail
                 if (MapDummy.Count > SegmentNo)
                 {
                     byte X = MapDummy[SegmentNo];
-                    Monitor.Exit(MapF_);
+                    MapCacheSet(SegmentNo, X);
                     return X;
                 }
                 else
                 {
-                    Monitor.Exit(MapF_);
+                    MapCacheSet(SegmentNo, 0);
                     return 0;
                 }
             }
@@ -533,6 +564,11 @@ namespace BackupToMail
         public void MapSet(int SegmentNo, byte SegmentValue)
         {
             Monitor.Enter(MapF_);
+            if (MapCacheSet(SegmentNo, SegmentValue))
+            {
+                Monitor.Exit(MapF_);
+                return;
+            }
             if (ParamMapFile != null)
             {
                 FileStream MapS = MapOpen();
@@ -560,7 +596,7 @@ namespace BackupToMail
             }
             Monitor.Exit(MapF_);
         }
-        
+
         /// <summary>
         /// Read segment from data file
         /// </summary>
@@ -570,52 +606,63 @@ namespace BackupToMail
         {
             Monitor.Enter(DataF_);
             byte[] SegmentData;
-            if (IsDummyFile)
+            if (ParamDataFile != null)
             {
-                long SegmentOffset = SegmentNo;
-                SegmentOffset = SegmentOffset * SegmentSize;
-                long SegmentSize_ = DummyFileSize - SegmentOffset;
-                if (SegmentSize_ > SegmentSize)
+                if (IsDummyFile)
                 {
-                    SegmentSize_ = SegmentSize;
-                }
-                SegmentData = RandomSequence_.GenSeq(SegmentOffset, SegmentSize_);
-                if (ParamDigestMode)
-                {
-                    SegmentData = MailSegment.StrToBin(MailSegment.Digest(SegmentData));
-                }
-            }
-            else
-            {
-                FileStream DataS = DataOpen();
-                long SegmentOffset = SegmentNo;
-                if (ParamDigestMode)
-                {
-                    SegmentOffset = (SegmentOffset + 1) * DigestSize;
-                    SegmentData = new byte[DigestSize];
-                    for (int i = 0; i < DigestSize; i++)
-                    {
-                        SegmentData[i] = (byte)'_';
-                    }
-                    if ((SegmentOffset + DigestSize) <= DataS.Length)
-                    {
-                        DataS.Seek(SegmentOffset, SeekOrigin.Begin);
-                        DataS.Read(SegmentData, 0, DigestSize);
-                    }
-                }
-                else
-                {
+                    long SegmentOffset = SegmentNo;
                     SegmentOffset = SegmentOffset * SegmentSize;
-                    long SegmentSize_ = DataS.Length - SegmentOffset;
+                    long SegmentSize_ = DummyFileSize - SegmentOffset;
                     if (SegmentSize_ > SegmentSize)
                     {
                         SegmentSize_ = SegmentSize;
                     }
-                    SegmentData = new byte[SegmentSize_];
-                    DataS.Seek(SegmentOffset, SeekOrigin.Begin);
-                    DataS.Read(SegmentData, 0, (int)SegmentSize_);
+                    SegmentData = RandomSequence_.GenSeq(SegmentOffset, SegmentSize_);
+                    if (ParamDigestMode)
+                    {
+                        SegmentData = MailSegment.StrToBin(MailSegment.Digest(SegmentData));
+                    }
                 }
-                DataS.Close();
+                else
+                {
+                    FileStream DataS = DataOpen();
+                    long SegmentOffset = SegmentNo;
+                    if (ParamDigestMode)
+                    {
+                        SegmentOffset = (SegmentOffset + 1) * DigestSize;
+                        SegmentData = new byte[DigestSize];
+                        for (int i = 0; i < DigestSize; i++)
+                        {
+                            SegmentData[i] = (byte)'_';
+                        }
+                        if ((SegmentOffset + DigestSize) <= DataS.Length)
+                        {
+                            DataS.Seek(SegmentOffset, SeekOrigin.Begin);
+                            DataS.Read(SegmentData, 0, DigestSize);
+                        }
+                    }
+                    else
+                    {
+                        SegmentOffset = SegmentOffset * SegmentSize;
+                        long SegmentSize_ = DataS.Length - SegmentOffset;
+                        if (SegmentSize_ > SegmentSize)
+                        {
+                            SegmentSize_ = SegmentSize;
+                        }
+                        SegmentData = new byte[SegmentSize_];
+                        DataS.Seek(SegmentOffset, SeekOrigin.Begin);
+                        DataS.Read(SegmentData, 0, (int)SegmentSize_);
+                    }
+                    DataS.Close();
+                }
+            }
+            else
+            {
+                SegmentData = new byte[SegmentSize];
+                for (int i = 0; i < SegmentSize; i++)
+                {
+                    SegmentData[i] = 0;
+                }
             }
             Monitor.Exit(DataF_);
             return SegmentData;
@@ -630,7 +677,7 @@ namespace BackupToMail
         public void DataSet(int SegmentNo, byte[] SegmentData, int SegmentDataLength)
         {
             Monitor.Enter(DataF_);
-            if (!IsDummyFile)
+            if ((!IsDummyFile) && (ParamDataFile != null))
             {
                 FileStream DataS = DataOpen();
                 long SegmentOffset = SegmentNo;
@@ -649,13 +696,15 @@ namespace BackupToMail
                     DataS.Seek(SegmentOffset, SeekOrigin.Begin);
                     DataS.Write(MailSegment.DigestBin(SegmentData, SegmentDataLength), 0, DigestSize);
 
-                    if (FileSize___ != DataS.Length)
+                    if ((FileSize___ != DataS.Length) || (SegmentCount == (SegmentNo + 1)))
                     {
                         SegmentOffset = SegmentNo;
                         FileSize__ = (SegmentOffset * SegmentSizeL) + (long)SegmentDataLength;
                         DataS.Seek(0, SeekOrigin.Begin);
+                        DigestFileSize = FileSize__;
                         SegmentData = MailSegment.StrToBin(FileSize__.ToString("X").PadLeft(16, '0'));
                         DataS.Write(SegmentData, 0, 16);
+                        DigestSegmentSize = SegmentSize;
                         SegmentData = MailSegment.StrToBin(SegmentSize.ToString("X").PadLeft(16, '0'));
                         DataS.Write(SegmentData, 0, 16);
                     }
@@ -683,7 +732,111 @@ namespace BackupToMail
             }
             Monitor.Exit(DataF_);
         }
-        
+
+        public bool ResizeNeed()
+        {
+            if ((SegmentCount == 0) || (SegmentSize == 0))
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public void Resize()
+        {
+            if ((SegmentCount == 0) || (SegmentSize == 0))
+            {
+                return;
+            }
+
+            long FileSize__Min = (SegmentCount - 1) * (SegmentSize) + 1;
+            long FileSize__Max = SegmentCount * SegmentSize;
+
+            Monitor.Enter(DataF_);
+            if ((!IsDummyFile) && (ParamDataFile != null) && (!ParamDataRead))
+            {
+                FileStream DataS = ParamDigestMode ? DataOpenRW() : DataOpen();
+                if (ParamDigestMode)
+                {
+                    if (DataS.Length >= 16)
+                    {
+                        byte[] Buf1 = new byte[16];
+                        //byte[] Buf2 = new byte[16];
+                        DataS.Seek(0, SeekOrigin.Begin);
+                        DataS.Read(Buf1, 0, 16);
+                        //DataS.Read(Buf2, 0, 16);
+                        DigestFileSize = 0;
+                        try
+                        {
+                            DigestFileSize = long.Parse(MailSegment.BinToStr(Buf1), NumberStyles.HexNumber);
+                            //DigestSegmentSize = int.Parse(MailSegment.BinToStr(Buf2), NumberStyles.HexNumber);
+                        }
+                        catch
+                        {
+                            DigestFileSize = 0;
+                        }
+                    }
+
+                    long FileSizeDig = DigestFileSize;
+                    if (FileSizeDig < FileSize__Min)
+                    {
+                        FileSizeDig = FileSize__Min;
+                    }
+                    if (FileSizeDig > FileSize__Max)
+                    {
+                        FileSizeDig = FileSize__Max;
+                    }
+
+                    DataS.Seek(0, SeekOrigin.Begin);
+                    byte[] SegmentData = MailSegment.StrToBin(FileSizeDig.ToString("X").PadLeft(16, '0'));
+                    DataS.Write(SegmentData, 0, 16);
+                    SegmentData = MailSegment.StrToBin(SegmentSize.ToString("X").PadLeft(16, '0'));
+                    DataS.Write(SegmentData, 0, 16);
+
+                    int DigestDataSize__ = ((SegmentCount + 1) * DigestSize);
+                    if (DataS.Length < DigestDataSize__)
+                    {
+                        DataS.Seek(0, SeekOrigin.End);
+                        while (DataS.Length < DigestDataSize__)
+                        {
+                            DataS.Write(Dummy, 0, DigestSize);
+                        }
+                    }
+                    DataS.SetLength(DigestDataSize__);
+                }
+                else
+                {
+                    if (DataS.Length < FileSize__Min)
+                    {
+                        DataS.SetLength(FileSize__Min);
+                    }
+                    if (DataS.Length > FileSize__Max)
+                    {
+                        DataS.SetLength(FileSize__Max);
+                    }
+                }
+                DataS.Close();
+            }
+            Monitor.Exit(DataF_);
+            Monitor.Enter(MapF_);
+            if (ParamMapFile != null)
+            {
+                FileStream MapS = MapOpen();
+                if (MapS.Length < SegmentCount)
+                {
+                    MapValue[0] = 48;
+                    MapS.Seek(0, SeekOrigin.End);
+                    while (MapS.Length < SegmentCount)
+                    {
+                        MapS.Write(MapValue, 0, 1);
+                    }
+                }
+                MapS.SetLength(SegmentCount);
+                MapS.Close();
+            }
+            Monitor.Exit(MapF_);
+        }
+
         /// <summary>
         /// Close data/map file object after action
         /// </summary>

@@ -22,11 +22,11 @@ BackupToMail uses the **Config\.txt** file to get configuration\. This file is a
 The general settings in **Config\.txt** file are following:
 
 
-* **ThreadsUpload** \- Number of simultaneous threads used in uploading \(default 1\)\.
-* **ThreadsDownload** \- Number of simultaneous threads used in downloading \(default 1\)\.
+* **ThreadsUpload** \- Number of simultaneous connections and threads used in uploading \(default 1\)\.
+* **ThreadsDownload** \- Number of simultaneous connections and threads used in downloading \(default 1\)\.
 * **UploadGroupChange** \- Number of upload errors, after which the group of sending accounts will be changed to the nest group \(default 5\)\.
 * **DownloadRetry** \- Number of retries to download the same message after download failure and reconnection\.
-* **DefaultSegmentType** \- Segment type when segment type is not specified in upload command \(default 0\)\.
+* **DefaultSegmentType** \- Segment type and segment upload order when segment type is not specified in upload command \(default 0\)\.
 * **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default 16777216 = 16MB\)\.
 * **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default 4096\)\.
 * **RandomCacheStepBits** \- Number of bits to specify caching period in generating the dummy file contents \(default 25, which means 32MB\)\.
@@ -266,12 +266,16 @@ To upload file, you have to run BackupToMail with the following parameters, the 
 5. **Source account list** \- List of source accounts, which will be used to send messages\. You can use the **\.\.** in account list to separate the account groups\.
 6. **Destination account list** \- List of destination accounts, which will be used provide message reipts into **To** field\.
 7. **Segment size** \- The size of on segment other than default\.
-8. **Segment type** \- The segment type other than default \(you can not provide segment type without providing segment size\), using one of the numbers:
-  * **0** \- Binary attachment
-  * **1** \- PNG image attachment
-  * **2** \- Base64 in plain text body
-  * **3** \- PNG image in HTML body
-9. **Image width** \- The image wigth used, if segment type is **1** or **3** \(you can not provide image width without providing segment type\)\.
+8. **Segment type** \- The segment type and upload segment order other than default \(you can not provide segment type without providing segment size\), using one of the numbers:
+  * **0** \- Binary attachment, ascending segment order\.
+  * **1** \- PNG image attachment, ascending segment order\.
+  * **2** \- Base64 in plain text body, ascending segment order\.
+  * **3** \- PNG image in HTML body, ascending segment order\.
+  * **10** \- Binary attachment, descending segment order\.
+  * **11** \- PNG image attachment, descending segment order\.
+  * **12** \- Base64 in plain text body, descending segment order\.
+  * **13** \- PNG image in HTML body, descending segment order\.
+9. **Image width** \- The image width used, if segment type is **1** or **3** or **10** or **13** \(you can not provide image width without providing segment type\)\.
 
 If item name, data file name or map file name contains spaces, you have to provide this parameter in quotation signs like "file name with spaces"\. The source and destination account list can not contain a spaces\. Below, there are some examples:
 
@@ -281,13 +285,19 @@ Upload **file\.zip** using **file\.map** as map file, save item named as **File*
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3
 ```
 
-Upload the same file using the same accounts with provide 1000 image width and 1000000 bytes segment length:
+Upload **file\.zip** using the same accounts with provide 1000 image width and 1000000 bytes segment length:
 
 ```
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 1000000 1 1000
 ```
 
-Upload the same file using four accounts in two groups to store in account 0:
+Upload **file\.zip** using the same accounts using reverse segment order as binary attachment and default segment length:
+
+```
+BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 0 10
+```
+
+Upload **file\.zip** using four accounts in two groups to store in account 0:
 
 ```
 BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 0,1,..,2,3 0
@@ -443,7 +453,7 @@ To download or check file, you have to run BackupToMail with the following param
 3. **Data file path and name** \- Path and name of file, which you want to upload\.
 4. **Map file path and name** \- Path and name of file, which you want to upload\. You can use the blank name or **/** character as name to not use map file\.
 5. **Source account list with item index intervals** \- Account list separated by commas, but pair of numbers separated by two dots \(**\.\.**\) or one number and two dots is interpreted as index interval filter \(see examples\)\.
-6. **Download or check mode** \- One of available modes, which uses the same principle \(some of this modes implies no whole message download\), the mode is a number from the following:
+6. **Download or check mode** \- One of available modes and index browsing direction, which uses the same principle \(some of this modes implies header download only\), the mode and direction is a number from the following:
   * **0** or **10** \- Download data file \(default mode, which is used, if this parameter is not specified\)\.
   * **1** or **11** \- Check existence without body control\.
   * **2** or **12** \- Check existence with body control\.
@@ -452,6 +462,8 @@ To download or check file, you have to run BackupToMail with the following param
   * **5** or **15** \- Download digest file\.
   * **6** or **16** \- Check the header digest using digest file\.
   * **7** or **17** \- Check the body contents using digest file\.
+  * From **0** to **7** \- forward browsing direction\.
+  * From **10** to **17** \- backward browsing direction\.
 7. **Delete option list** \- List of values separated by commas, which indicates, which messages must be deleted \(additionaly with download/check action\):
   * **0** \- None\.
   * **1** \- Bad \- after certain number of attempts in a row\.
@@ -461,11 +473,11 @@ To download or check file, you have to run BackupToMail with the following param
   * **5** \- Other files\.
   * **6** \- Undownloadable messages \- after certain number of attempts in a row\.
 
-Because the downloading or checking principle is browsing messages item by item \(information, which messages contains desired item, not exists\), BackupToMail can browse the message index in forward order or backward order\. The browsing order depends on downoad od check mode as following:
+Because the downloading or checking principle is browsing messages item by item \(information, which messages contains desired item, not exists\), BackupToMail can browse the message index in forward or backward dorection\. The browsing order depends on downoad od check mode as following:
 
 
-* Between **0** and **7** \- forward order
-* Between **10** and **17** \- backward order
+* Between **0** and **7** \- forward browsing direction
+* Between **10** and **17** \- backward browsing direction
 
 The browsing order is not important in most cases\. The cases, in which browsing order affects the result or working time, are for example:
 
@@ -610,8 +622,8 @@ Within one account browsing, there will be analyzed all messages in the account\
 Every browsed message information is printed and the subject is analyzed to determine, if the message seems to be contain a rewuested file\. The number of file segments is not known until there will be browsed one of the segments matching to requested item \(subject contains the digest of item name\)\. Such messages will not be downloaded immediately\. The downloading will be begin, if occurs one of the following events:
 
 
-* Found as number of messages containing requested file parts do download as set number od download threads\.
-* After last message to download there are browsed as number of other messages as set number od download threads\.
+* Found as number of messages containing requested file parts do download as number of download threads\.
+* After last message to download there are browsed as number of other messages as number of download threads\.
 * After browsing the last message in the browsing iteration loop\.
 
 The time during downloading, from creating download threads to saving to file each segment from this threads, is measused and there is encountered byten of successfully downloaded segment\. After threads end, application prints download speed\.

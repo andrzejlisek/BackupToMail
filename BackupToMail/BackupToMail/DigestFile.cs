@@ -63,8 +63,8 @@ namespace BackupToMail
                         MD.CalcSegmentCount();
                         DigestSegmentSize = MD.DigestSegmentSize;
                         DigestFileSize = MD.DigestFileSize;
-                        Console.WriteLine("Data file size from digest file: " + DigestSegmentSize);
-                        Console.WriteLine("Segment from digest file: " + DigestFileSize);
+                        Console.WriteLine("Data file size from digest file: " + DigestFileSize);
+                        Console.WriteLine("Segment size from digest file: " + DigestSegmentSize);
                         Console.WriteLine();
                     }
                     if ((DigestSegmentSize == SegmentSize) && (FileSize == DigestFileSize))

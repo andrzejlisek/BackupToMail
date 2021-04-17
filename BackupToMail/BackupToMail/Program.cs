@@ -128,32 +128,48 @@ namespace BackupToMail
 
             string[] SegmentTypeDesc = new string[]
             {
-                "Binary attachment",
-                "PNG image attachment",
-                "Base64 in plain text body",
-                "PNG image in HTML body"
+                "Binary attachment, ascending segment order",
+                "PNG image attachment, ascending segment order",
+                "Base64 in plain text body, ascending segment order",
+                "PNG image in HTML body, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, ascending segment order",
+                "Binary attachment, descending segment order",
+                "PNG image attachment, descending segment order",
+                "Base64 in plain text body, descending segment order",
+                "PNG image in HTML body, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order",
+                "Binary attachment, descending segment order"
             };            
 
             string[] DownloadTypeDesc = new string[]
             {
-                "Download data file - forward",
-                "Check existence without body control - forward",
-                "Check existence with body control - forward",
-                "Check the header digest using data file - forward",
-                "Check the body contents using data file - forward",
-                "Download digest file - forward",
-                "Check the header digest using digest file - forward",
-                "Check the body contents using digest file - forward",
+                "Download data file, forward browsing direction",
+                "Check existence without body control, forward browsing direction",
+                "Check existence with body control, forward browsing direction",
+                "Check the header digest using data file, forward browsing direction",
+                "Check the body contents using data file, forward browsing direction",
+                "Download digest file, forward browsing direction",
+                "Check the header digest using digest file, forward browsing direction",
+                "Check the body contents using digest file, forward browsing direction",
                 "",
                 "",
-                "Download data file - backward",
-                "Check existence without body control - backward",
-                "Check existence with body control - backward",
-                "Check the header digest using data file - backward",
-                "Check the body contents using data file - backward",
-                "Download digest file - backward",
-                "Check the header digest using digest file - backward",
-                "Check the body contents using digest file - backward",
+                "Download data file, backward browsing direction",
+                "Check existence without body control, backward browsing direction",
+                "Check existence with body control, backward browsing direction",
+                "Check the header digest using data file, backward browsing direction",
+                "Check the body contents using data file, backward browsing direction",
+                "Download digest file, backward browsing direction",
+                "Check the header digest using digest file, backward browsing direction",
+                "Check the body contents using digest file, backward browsing direction",
                 "",
                 ""
             };            
@@ -205,11 +221,26 @@ namespace BackupToMail
                     ItemData = args[2].Split(MailSegment.NameSeparator[0]);
                     ItemMap = args[3].Split(MailSegment.NameSeparator[0]);
                 }
+                for (int i_ = 0; i_ < ItemData.Length; i_++)
+                {
+                    if ((ItemData[i_] == "") || (ItemData[i_] == "/"))
+                    {
+                        ItemData[i_] = null;
+                    }
+                    else
+                    {
+                        ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
+                    }
+                }
                 for (int i_ = 0; i_ < ItemMap.Length; i_++)
                 {
                     if ((ItemMap[i_] == "") || (ItemMap[i_] == "/"))
                     {
                         ItemMap[i_] = null;
+                    }
+                    else
+                    {
+                        ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
                     }
                 }
 
@@ -263,9 +294,9 @@ namespace BackupToMail
                 }
                 if (args.Length >= 8)
                 {
-                    if ((StrToInt(args[7]) >= 0) && (StrToInt(args[7]) <= 3))
+                    if (StrToInt(args[7]) >= 0)
                     {
-                        SegmentType = StrToInt(args[7]);
+                        SegmentType = StrToInt(args[7]) % 20;
                     }
                 }
                 if (args.Length >= 9)
@@ -284,7 +315,14 @@ namespace BackupToMail
                 {
                     WelcomeMsg.Add("Item " + (i_ + 1).ToString() + ":");
                     WelcomeMsg.Add(" Item name: " + ItemName[i_]);
-                    WelcomeMsg.Add(" Data file: " + ItemData[i_]);
+                    if (ItemData[i_] != null)
+                    {
+                        WelcomeMsg.Add(" Data file: " + ItemData[i_]);
+                    }
+                    else
+                    {
+                        WelcomeMsg.Add(" No data file");
+                    }
                     if (ItemMap[i_] != null)
                     {
                         WelcomeMsg.Add(" Map file: " + ItemMap[i_]);
@@ -356,11 +394,26 @@ namespace BackupToMail
                     ItemData = args[2].Split(MailSegment.NameSeparator[0]);
                     ItemMap = args[3].Split(MailSegment.NameSeparator[0]);
                 }
+                for (int i_ = 0; i_ < ItemData.Length; i_++)
+                {
+                    if ((ItemData[i_] == "") || (ItemData[i_] == "/"))
+                    {
+                        ItemData[i_] = null;
+                    }
+                    else
+                    {
+                        ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
+                    }
+                }
                 for (int i_ = 0; i_ < ItemMap.Length; i_++)
                 {
                     if ((ItemMap[i_] == "") || (ItemMap[i_] == "/"))
                     {
                         ItemMap[i_] = null;
+                    }
+                    else
+                    {
+                        ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
                     }
                 }
 
@@ -433,7 +486,14 @@ namespace BackupToMail
                 {
                     WelcomeMsg.Add("Item " + (i_ + 1).ToString() + ":");
                     WelcomeMsg.Add(" Item name: " + ItemName[i_]);
-                    WelcomeMsg.Add(" Data file: " + ItemData[i_]);
+                    if (ItemData[i_] != null)
+                    {
+                        WelcomeMsg.Add(" Data file: " + ItemData[i_]);
+                    }
+                    else
+                    {
+                        WelcomeMsg.Add(" No data file");
+                    }
                     if (ItemMap[i_] != null)
                     {
                         WelcomeMsg.Add(" Map file: " + ItemMap[i_]);
@@ -619,8 +679,8 @@ namespace BackupToMail
 
                 long DummyFileSize = 0;
 
-                string DummyName = args[1];
-                string FileName = args[2];
+                string DummyName = MailFile.FileNameToPath(args[1]);
+                string FileName = MailFile.FileNameToPath(args[2]);
                 long DummySegmentSize = 0;
                 if (args.Length > 3)
                 {
@@ -881,8 +941,8 @@ namespace BackupToMail
             // Create or check digest
             if (((ProgMode == 5) || (ProgMode == 15)) && (args.Length > 3))
             {
-                ItemData[0] = args[2];
-                ItemMap[0] = args[3];
+                ItemData[0] = MailFile.FileNameToPath(args[2]);
+                ItemMap[0] = MailFile.FileNameToPath(args[3]);
                 int SegS = -1;
                 if (args.Length > 4)
                 {
@@ -945,11 +1005,26 @@ namespace BackupToMail
                     ItemData = args[2].Split(MailSegment.NameSeparator[0]);
                     ItemMap = args[3].Split(MailSegment.NameSeparator[0]);
                 }
+                for (int i_ = 0; i_ < ItemData.Length; i_++)
+                {
+                    if ((ItemData[i_] == "") || (ItemData[i_] == "/"))
+                    {
+                        ItemData[i_] = null;
+                    }
+                    else
+                    {
+                        ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
+                    }
+                }
                 for (int i_ = 0; i_ < ItemMap.Length; i_++)
                 {
                     if ((ItemMap[i_] == "") || (ItemMap[i_] == "/"))
                     {
                         ItemMap[i_] = null;
+                    }
+                    else
+                    {
+                        ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
                     }
                 }
 
@@ -983,11 +1058,21 @@ namespace BackupToMail
                             IsDigest = false;
                             if (FullInfo)
                             {
-                                Console.WriteLine(" Data file: " + ItemData[i_]);
+                                if (ItemData[0] != null)
+                                {
+                                    Console.WriteLine(" Data file: " + ItemData[i_]);
+                                }
+                                else
+                                {
+                                    Console.WriteLine(" No data file");
+                                }
                             }
                             else
                             {
-                                Console.Write(ItemData[i_]);
+                                if (ItemData[0] != null)
+                                {
+                                    Console.Write(Path.GetFileName(ItemData[i_]));
+                                }
                             }
                         }
                         if ((StrToInt(args[1]) == 1) || (StrToInt(args[1]) == 3))
@@ -995,36 +1080,42 @@ namespace BackupToMail
                             IsDigest = true;
                             if (FullInfo)
                             {
-                                Console.WriteLine(" Digest file: " + ItemData[i_]);
+                                if (ItemData[0] != null)
+                                {
+                                    Console.WriteLine(" Digest file: " + ItemData[i_]);
+                                }
+                                else
+                                {
+                                    Console.WriteLine(" No digest file");
+                                }
                             }
                             else
                             {
-                                Console.Write(ItemData[i_]);
+                                if (ItemData[0] != null)
+                                {
+                                    Console.Write(Path.GetFileName(ItemData[i_]));
+                                }
                             }
                         }
-                        if (ItemMap[0] != null)
+                        if (FullInfo)
                         {
-                            if (FullInfo)
+                            if (ItemMap[0] != null)
                             {
                                 Console.WriteLine(" Map file: " + ItemMap[i_]);
                             }
                             else
                             {
-                                Console.Write("/");
-                                Console.Write(ItemMap[i_]);
-                                Console.Write(": ");
+                                Console.WriteLine(" No map file");
                             }
                         }
                         else
                         {
-                            if (FullInfo)
+                            if (ItemMap[0] != null)
                             {
-                                Console.WriteLine(" No map file");
+                                Console.Write("/");
+                                Console.Write(Path.GetFileName(ItemMap[i_]));
                             }
-                            else
-                            {
-                                Console.Write(": ");
-                            }
+                            Console.Write(": ");
                         }
 
                         MailFile MF = new MailFile();
@@ -1087,10 +1178,14 @@ namespace BackupToMail
             Console.WriteLine("<source account list by commas> <destination account list by commas>");
             Console.WriteLine("[<segment size> <segment type> <image width>]");
             Console.WriteLine("Segment types:");
-            Console.WriteLine(" 0 - " + SegmentTypeDesc[0] + " (default)");
-            Console.WriteLine(" 1 - " + SegmentTypeDesc[1]);
-            Console.WriteLine(" 2 - " + SegmentTypeDesc[2]);
-            Console.WriteLine(" 3 - " + SegmentTypeDesc[3]);
+            Console.WriteLine(" 0 - " + SegmentTypeDesc[0] + (((MailSegment.DefaultSegmentType == 0) || ((MailSegment.DefaultSegmentType >= 4) && (MailSegment.DefaultSegmentType <= 9))) ? " (default)" : ""));
+            Console.WriteLine(" 1 - " + SegmentTypeDesc[1] + ((MailSegment.DefaultSegmentType == 1) ? " (default)" : ""));
+            Console.WriteLine(" 2 - " + SegmentTypeDesc[2] + ((MailSegment.DefaultSegmentType == 2) ? " (default)" : ""));
+            Console.WriteLine(" 3 - " + SegmentTypeDesc[3] + ((MailSegment.DefaultSegmentType == 3) ? " (default)" : ""));
+            Console.WriteLine(" 10 - " + SegmentTypeDesc[10] + (((MailSegment.DefaultSegmentType == 10) || ((MailSegment.DefaultSegmentType >= 14) && (MailSegment.DefaultSegmentType <= 19))) ? " (default)" : ""));
+            Console.WriteLine(" 11 - " + SegmentTypeDesc[11] + ((MailSegment.DefaultSegmentType == 11) ? " (default)" : ""));
+            Console.WriteLine(" 12 - " + SegmentTypeDesc[12] + ((MailSegment.DefaultSegmentType == 12) ? " (default)" : ""));
+            Console.WriteLine(" 13 - " + SegmentTypeDesc[13] + ((MailSegment.DefaultSegmentType == 13) ? " (default)" : ""));
             Console.WriteLine();
             Console.WriteLine("Download file:");
             Console.WriteLine("BackupToMail DOWNLOAD <item name> <data file> <map file> <account list>");
