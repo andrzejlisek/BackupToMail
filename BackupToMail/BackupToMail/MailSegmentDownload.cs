@@ -604,9 +604,9 @@ namespace BackupToMail
                                                 {
                                                     bool Good_ = false;
                                                     int FileSegmentSize = HexToInt(MsgInfo[4]) + 1;
-                                                    byte[] Temp = MF[FileI].DataGet(FileSegmentNum);
                                                     if (FileDownloadMode_ == FileDownloadMode.CompareHeaderDigest)
                                                     {
+                                                        byte[] Temp = MF[FileI].DataGetDigest(FileSegmentNum);
                                                         if (BinToStr(Temp) == MsgInfo[6])
                                                         {
                                                             Good_ = true;
@@ -614,6 +614,7 @@ namespace BackupToMail
                                                     }
                                                     else
                                                     {
+                                                        byte[] Temp = MF[FileI].DataGet(FileSegmentNum);
                                                         if ((Temp.Length == FileSegmentSize) && (Digest(Temp) == MsgInfo[6]))
                                                         {
                                                             Good_ = true;
@@ -1036,9 +1037,9 @@ namespace BackupToMail
                 if (MF[MRP_.FileI].MapGet(SegmentNum) == 0)
                 {
                     bool Good_ = true;
-                    byte[] RawDataX = MF[MRP_.FileI].DataGet(SegmentNum);
                     if (MRP_.FileDownloadMode_ == FileDownloadMode.CompareBodyDigest)
                     {
+                        byte[] RawDataX = MF[MRP_.FileI].DataGetDigest(SegmentNum);
                         byte[] RawDataDigest = StrToBin(Digest(RawData));
                         for (int I = 0; I < MailFile.DigestSize; I++)
                         {
@@ -1051,6 +1052,7 @@ namespace BackupToMail
                     }
                     else
                     {
+                        byte[] RawDataX = MF[MRP_.FileI].DataGet(SegmentNum);
                         Good_ = (RawDataX.Length == SegmentSize);
                         if (Good_)
                         {
@@ -1212,7 +1214,8 @@ namespace BackupToMail
                     if (MF[i_].ResizeNeed())
                     {
                         Console_WriteLine("Item " + (i_ + 1).ToString() + " - resize started");
-                        MF[i_].Resize();
+                        MF[i_].ResizeData();
+                        MF[i_].ResizeMap();
                         Console_WriteLine("Item " + (i_ + 1).ToString() + " - resize finished");
                     }
                     else

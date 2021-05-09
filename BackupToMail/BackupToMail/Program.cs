@@ -39,7 +39,25 @@ namespace BackupToMail
                 return -1;
             }
         }
-        
+
+        /// <summary>
+        /// Converts string to integer, returns -1 if convert is not possible 
+        /// </summary>
+        /// <param name="S"></param>
+        /// <returns></returns>
+        static long StrToLong(string S)
+        {
+            long I;
+            if (long.TryParse(S, out I))
+            {
+                return I;
+            }
+            else
+            {
+                return -1;
+            }
+        }
+
         /// <summary>
         /// Converts string to boolean
         /// true -  "1", "TRUE", "YES", "T", "Y"
@@ -192,18 +210,26 @@ namespace BackupToMail
                 switch (args[0].ToUpperInvariant())
                 {
                     case "UPLOAD": if (args.Length >= 6) { ProgMode = 1; } break;
-                    case "DOWNLOAD": if (args.Length >= 5) { ProgMode = 2; } break;
                     case "BATCHUPLOAD": if (args.Length >= 6) { ProgMode = 11; } break;
                     case "BATCHDOWNLOAD": if (args.Length >= 5) { ProgMode = 12; } break;
+
+                    case "DOWNLOAD": if (args.Length >= 5) { ProgMode = 2; } break;
                     case "UPLOADBATCH": if (args.Length >= 6) { ProgMode = 11; } break;
                     case "DOWNLOADBATCH": if (args.Length >= 5) { ProgMode = 12; } break;
-                    case "CONFIG": ProgMode = 3; break;
+                    
                     case "FILE": ProgMode = 4; break;
                     case "BATCHFILE": ProgMode = 14; break;
                     case "FILEBATCH": ProgMode = 14; break;
+
                     case "DIGEST": ProgMode = 5; break;
                     case "BATCHDIGEST": ProgMode = 15; break;
                     case "DIGESTBATCH": ProgMode = 15; break;
+
+                    case "RSCODE": ProgMode = 7; break;
+                    case "BATCHRSCODE": ProgMode = 17; break;
+                    case "RSCODEBATCH": ProgMode = 17; break;
+
+                    case "CONFIG": ProgMode = 3; break;
                     case "MAP": ProgMode = 6; break;
                 }
             }
@@ -223,25 +249,11 @@ namespace BackupToMail
                 }
                 for (int i_ = 0; i_ < ItemData.Length; i_++)
                 {
-                    if ((ItemData[i_] == "") || (ItemData[i_] == "/"))
-                    {
-                        ItemData[i_] = null;
-                    }
-                    else
-                    {
-                        ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
-                    }
+                    ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
                 }
                 for (int i_ = 0; i_ < ItemMap.Length; i_++)
                 {
-                    if ((ItemMap[i_] == "") || (ItemMap[i_] == "/"))
-                    {
-                        ItemMap[i_] = null;
-                    }
-                    else
-                    {
-                        ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
-                    }
+                    ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
                 }
 
                 List<int[]> AccSrc_ = CommaList(args[4]);
@@ -396,25 +408,11 @@ namespace BackupToMail
                 }
                 for (int i_ = 0; i_ < ItemData.Length; i_++)
                 {
-                    if ((ItemData[i_] == "") || (ItemData[i_] == "/"))
-                    {
-                        ItemData[i_] = null;
-                    }
-                    else
-                    {
-                        ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
-                    }
+                    ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
                 }
                 for (int i_ = 0; i_ < ItemMap.Length; i_++)
                 {
-                    if ((ItemMap[i_] == "") || (ItemMap[i_] == "/"))
-                    {
-                        ItemMap[i_] = null;
-                    }
-                    else
-                    {
-                        ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
-                    }
+                    ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
                 }
 
                 List<int[]> AccSrc_ = CommaList(args[4]);
@@ -477,9 +475,25 @@ namespace BackupToMail
                     }
                 }
 
-                
+                int RevOpt = 0;
+                if (FileDownloadReverseOrder)
+                {
+                    RevOpt = 10;
+                }
+
                 List<string> WelcomeMsg = new List<string>();
-                WelcomeMsg.Add("Download or check file");
+                WelcomeMsg.Add("Download or check file:");
+                switch (FileDownloadMode_)
+                {
+                    case MailSegment.FileDownloadMode.Download: WelcomeMsg.Add(DownloadTypeDesc[0 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.CheckExistHeader: WelcomeMsg.Add(DownloadTypeDesc[1 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.CheckExistBody: WelcomeMsg.Add(DownloadTypeDesc[2 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.CompareHeader: WelcomeMsg.Add(DownloadTypeDesc[3 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.CompareBody: WelcomeMsg.Add(DownloadTypeDesc[4 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.DownloadDigest: WelcomeMsg.Add(DownloadTypeDesc[5 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.CompareHeaderDigest: WelcomeMsg.Add(DownloadTypeDesc[6 + RevOpt]); break;
+                    case MailSegment.FileDownloadMode.CompareBodyDigest: WelcomeMsg.Add(DownloadTypeDesc[7 + RevOpt]); break;
+                }
                 int ItemCount = Math.Min(Math.Min(ItemName.Length, ItemData.Length), ItemMap.Length);
 
                 for (int i_ = 0; i_ < ItemCount; i_++)
@@ -529,22 +543,7 @@ namespace BackupToMail
                     WelcomeMsg.Add(Temp);
                 }
 
-                int RevOpt = 0;
-                if (FileDownloadReverseOrder)
-                {
-                    RevOpt = 10;
-                }
-                switch (FileDownloadMode_)
-                {
-                    case MailSegment.FileDownloadMode.Download: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[0 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.CheckExistHeader: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[1 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.CheckExistBody: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[2 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.CompareHeader: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[3 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.CompareBody: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[4 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.DownloadDigest: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[5 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.CompareHeaderDigest: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[6 + RevOpt]); break;
-                    case MailSegment.FileDownloadMode.CompareBodyDigest: WelcomeMsg.Add("Download or check mode: " + DownloadTypeDesc[7 + RevOpt]); break;
-                }
+
 
                 Temp = "Delete messages: ";
                 if (FileDeleteMode_ == MailSegment.FileDeleteMode.None)
@@ -938,17 +937,18 @@ namespace BackupToMail
                 return;
             }
 
-            // Create or check digest
-            if (((ProgMode == 5) || (ProgMode == 15)) && (args.Length > 3))
+            // Create digest or check data file against digest
+            if (((ProgMode == 5) || (ProgMode == 15)) && (args.Length > 4))
             {
                 ItemData[0] = MailFile.FileNameToPath(args[2]);
                 ItemMap[0] = MailFile.FileNameToPath(args[3]);
+                ItemName[0] = MailFile.FileNameToPath(args[4]);
                 int SegS = -1;
-                if (args.Length > 4)
+                if (args.Length > 5)
                 {
-                    if (StrToInt(args[4]) > 0)
+                    if (StrToInt(args[5]) > 0)
                     {
-                        SegS = StrToInt(args[4]);
+                        SegS = StrToInt(args[5]);
                     }
                 }
 
@@ -957,19 +957,42 @@ namespace BackupToMail
                     SegS = MailSegment.DefaultSegmentSize;
                 }
 
-                if ((StrToInt(args[1]) == 0) || (StrToInt(args[1]) == 1))
+                if ((StrToInt(args[1]) >= 0) && (StrToInt(args[1]) <= 3))
                 {
                     DigestFile DF_ = new DigestFile();
                     if (StrToInt(args[1]) == 0)
                     {
-                        Console.WriteLine("Create digest file");
+                        Console.WriteLine("Create the digest file from the data file");
                     }
                     if (StrToInt(args[1]) == 1)
                     {
-                        Console.WriteLine("Check digest file");
+                        Console.WriteLine("Check the data file against the digest file");
+                    }
+                    if (StrToInt(args[1]) == 2)
+                    {
+                        Console.WriteLine("Correct the data file size");
+                    }
+                    if (StrToInt(args[1]) == 3)
+                    {
+                        Console.WriteLine("Correct the data file size and check the data file");
                     }
                     Console.WriteLine("Data file: " + ItemData[0]);
-                    Console.WriteLine("Digest file: " + ItemMap[0]);
+                    if (ItemMap[0] != null)
+                    {
+                        Console.WriteLine("Map file: " + ItemMap[0]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("No map file");
+                    }
+                    if (ItemName[0] != null)
+                    {
+                        Console.WriteLine("Digest file: " + ItemName[0]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("No digest file");
+                    }
                     Console.WriteLine("Segment size: " + SegS);
                     Console.WriteLine();
 
@@ -981,14 +1004,7 @@ namespace BackupToMail
                     }
                     if (Continue)
                     {
-                        if (StrToInt(args[1]) == 0)
-                        {
-                            DF_.Proc(true, ItemData[0], ItemMap[0], SegS);
-                        }
-                        if (StrToInt(args[1]) == 1)
-                        {
-                            DF_.Proc(false, ItemData[0], ItemMap[0], SegS);
-                        }
+                        DF_.Proc(StrToInt(args[1]), ItemData[0], ItemMap[0], ItemName[0], SegS);
                     }
                     return;
                 }
@@ -1007,25 +1023,11 @@ namespace BackupToMail
                 }
                 for (int i_ = 0; i_ < ItemData.Length; i_++)
                 {
-                    if ((ItemData[i_] == "") || (ItemData[i_] == "/"))
-                    {
-                        ItemData[i_] = null;
-                    }
-                    else
-                    {
-                        ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
-                    }
+                    ItemData[i_] = MailFile.FileNameToPath(ItemData[i_]);
                 }
                 for (int i_ = 0; i_ < ItemMap.Length; i_++)
                 {
-                    if ((ItemMap[i_] == "") || (ItemMap[i_] == "/"))
-                    {
-                        ItemMap[i_] = null;
-                    }
-                    else
-                    {
-                        ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
-                    }
+                    ItemMap[i_] = MailFile.FileNameToPath(ItemMap[i_]);
                 }
 
                 if (args.Length > 4)
@@ -1170,6 +1172,196 @@ namespace BackupToMail
                 }
             }
 
+            // Reed-Solomon code operations
+            if (((ProgMode == 7) || (ProgMode == 17)) && (args.Length >= 6))
+            {
+                CodeReedSolomon CRS = new CodeReedSolomon();
+
+                string DataF = MailFile.FileNameToPath(args[2]);
+                string DataM = MailFile.FileNameToPath(args[3]);
+                string CodeF = MailFile.FileNameToPath(args[4]);
+                string CodeM = MailFile.FileNameToPath(args[5]);
+
+                int CodeSegs = (args.Length > 6) ? StrToInt(args[6]) : 0;
+                int SegS = -1;
+                if (args.Length > 7)
+                {
+                    if (StrToInt(args[7]) > 0)
+                    {
+                        SegS = StrToInt(args[7]);
+                    }
+                }
+                int PolyInt = 0;
+                if (args.Length > 8)
+                {
+                    if (StrToInt(args[8]) > 0)
+                    {
+                        PolyInt = StrToInt(args[8]);
+                    }
+                }
+
+                if (CodeSegs <= 0)
+                {
+                    if (StrToInt(args[1]) == 8)
+                    {
+                        CodeSegs = 0;
+                    }
+                    else
+                    {
+                        CodeSegs = 1;
+                    }
+                }
+
+                if (SegS <= 0)
+                {
+                    SegS = MailSegment.DefaultSegmentSize;
+                }
+
+                if (PolyInt <= 0)
+                {
+                    PolyInt = 0;
+                }
+                CRS.SetPolynomialNumber(PolyInt);
+
+                if ((StrToInt(args[1]) >= 0) || (StrToInt(args[1]) <= 8))
+                {
+                    DigestFile DF_ = new DigestFile();
+
+                    if (StrToInt(args[1]) == 0)
+                    {
+                        Console.WriteLine("Create code file");
+                    }
+                    if (StrToInt(args[1]) == 1)
+                    {
+                        Console.WriteLine("Recover files automatically - do not modify files");
+                    }
+                    if (StrToInt(args[1]) == 2)
+                    {
+                        Console.WriteLine("Recover files based on the maps - do not modify files");
+                    }
+                    if (StrToInt(args[1]) == 3)
+                    {
+                        Console.WriteLine("Recover files automatically - modify files according maps");
+                    }
+                    if (StrToInt(args[1]) == 4)
+                    {
+                        Console.WriteLine("Recover files based on the maps - modify files according maps");
+                    }
+                    if (StrToInt(args[1]) == 5)
+                    {
+                        Console.WriteLine("Recover files automatically - modify files regardless maps");
+                    }
+                    if (StrToInt(args[1]) == 6)
+                    {
+                        Console.WriteLine("Recover files based on the maps - modify files regardless maps");
+                    }
+                    if (StrToInt(args[1]) == 7)
+                    {
+                        Console.WriteLine("Resize files to specified size");
+                        DataM = StrToLong(args[3]).ToString();
+                        CodeM = StrToLong(args[5]).ToString();
+
+                        if (StrToLong(args[3]) < 0) { DataM = "0"; }
+                        if (StrToLong(args[5]) < 0) { CodeM = "0"; }
+                    }
+                    if (StrToInt(args[1]) == 8)
+                    {
+                        Console.WriteLine("Simulate incomplete download");
+                    }
+                    if (DataF != null)
+                    {
+                        Console.WriteLine("Data file: " + DataF);
+                        if (DataM != null)
+                        {
+                            if (StrToInt(args[1]) == 7)
+                            {
+                                Console.WriteLine("Desired data file size: " + DataM);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Map file for data: " + DataM);
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No map file for data");
+                        }
+                    }
+                    if (CodeF != null)
+                    {
+                        Console.WriteLine("Code file: " + CodeF);
+                        if (CodeM != null)
+                        {
+                            if (StrToInt(args[1]) == 7)
+                            {
+                                Console.WriteLine("Desired code file size: " + CodeM);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Map file for code: " + CodeM);
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No map file for code");
+                        }
+                    }
+                    if (StrToInt(args[1]) == 0)
+                    {
+                        Console.WriteLine("Code segments: " + CodeSegs);
+                    }
+                    if (StrToInt(args[1]) == 8)
+                    {
+                        if (CodeSegs < 0)
+                        {
+                            CodeSegs = 0;
+                        }
+                        CodeSegs = CodeSegs % 3;
+                        switch (CodeSegs)
+                        {
+                            case 0: Console.WriteLine("File resize: none"); break;
+                            case 1: Console.WriteLine("File resize: download process finished"); break;
+                            case 2: Console.WriteLine("File resize: download process broken"); break;
+                        }
+                    }
+                    if (StrToInt(args[1]) != 7)
+                    {
+                        Console.WriteLine("Segment size: " + SegS);
+                    }
+
+                    if (StrToInt(args[1]) <= 6)
+                    {
+                        if (CRS.PolynomialNumber > 0)
+                        {
+                            Console.WriteLine("Bits per value: " + CRS.NumberOfBits);
+                            Console.WriteLine("Primitive polynomial: " + CRS.PolynomialNumber);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Bits per value: auto");
+                            Console.WriteLine("Primitive polynomial: auto");
+                        }
+                    }
+                    Console.WriteLine();
+
+                    bool Continue = true;
+                    if (ProgMode == 7)
+                    {
+                        Console.Write("Do you want to continue (Yes/No)? ");
+                        Continue = StrToBool(Console.ReadLine());
+                    }
+                    if (Continue)
+                    {
+                        CRS.Proc(StrToInt(args[1]), DataF, DataM, CodeF, CodeM, CodeSegs, SegS);
+                    }
+                    return;
+                }
+
+
+
+                return;
+            }
+
             // Help and information
             Console.WriteLine("BackupToMail - command-line application to use mailbox as backup storage.");
             Console.WriteLine("");
@@ -1224,11 +1416,27 @@ namespace BackupToMail
             Console.WriteLine(" 2 - Use data file, brief information");
             Console.WriteLine(" 3 - Use digest file, brief information");
             Console.WriteLine();
-            Console.WriteLine("Create or check digest file:");
-            Console.WriteLine("BackupToMail DIGEST <mode> <data file> <digest file> [<segment size>]");
+            Console.WriteLine("Create digest or check data file against digest:");
+            Console.WriteLine("BackupToMail DIGEST <mode> <data file> <map file> <digest file> [<seg size>]");
             Console.WriteLine("Available modes:");
             Console.WriteLine(" 0 - Create the digest file from the data file (default)");
-            Console.WriteLine(" 1 - Check the digest file against the data file");
+            Console.WriteLine(" 1 - Check the data file against the digest file");
+            Console.WriteLine(" 2 - Correct the data file size");
+            Console.WriteLine(" 3 - Correct the data file size and check the data file");
+            Console.WriteLine();
+            Console.WriteLine("Create Reed-Solomon code or recover incomplete data file");
+            Console.WriteLine("BackupToMail RSCODE <mode> <data file> <data map> <code file> <code map>");
+            Console.WriteLine("<code segments> [<segment size> <polynomial number>]");
+            Console.WriteLine("Available modes:");
+            Console.WriteLine(" 0 - Create code file");
+            Console.WriteLine(" 1 - Recover files automatically - do not modify files");
+            Console.WriteLine(" 2 - Recover files based on the maps - do not modify files");
+            Console.WriteLine(" 3 - Recover files automatically - modify files according maps");
+            Console.WriteLine(" 4 - Recover files based on the maps - modify files according maps");
+            Console.WriteLine(" 5 - Recover files automatically - modify files regardless maps");
+            Console.WriteLine(" 6 - Recover files based on the maps - modify files regardless maps");
+            Console.WriteLine(" 7 - Resize files to specified size");
+            Console.WriteLine(" 8 - Simulate incomplete download");
             Console.WriteLine();
             Console.WriteLine("Create file based on dummy file generator:");
             Console.WriteLine("BackupToMail FILE <dummy file definition> <file name>");

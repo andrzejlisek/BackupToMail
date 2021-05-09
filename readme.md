@@ -22,14 +22,14 @@ BackupToMail uses the **Config\.txt** file to get configuration\. This file is a
 The general settings in **Config\.txt** file are following:
 
 
-* **ThreadsUpload** \- Number of simultaneous connections and threads used in uploading \(default 1\)\.
-* **ThreadsDownload** \- Number of simultaneous connections and threads used in downloading \(default 1\)\.
-* **UploadGroupChange** \- Number of upload errors, after which the group of sending accounts will be changed to the nest group \(default 5\)\.
-* **DownloadRetry** \- Number of retries to download the same message after download failure and reconnection\.
-* **DefaultSegmentType** \- Segment type and segment upload order when segment type is not specified in upload command \(default 0\)\.
-* **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default 16777216 = 16MB\)\.
-* **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default 4096\)\.
-* **RandomCacheStepBits** \- Number of bits to specify caching period in generating the dummy file contents \(default 25, which means 32MB\)\.
+* **ThreadsUpload** \- Number of simultaneous connections and threads used in uploading \(default **1**\)\.
+* **ThreadsDownload** \- Number of simultaneous connections and threads used in downloading \(default **1**\)\.
+* **UploadGroupChange** \- Number of upload errors, after which the group of sending accounts will be changed to the nest group \(default **5**\)\.
+* **DownloadRetry** \- Number of retries to download the same message after download failure and reconnection \(default **5**\)\.
+* **DefaultSegmentType** \- Segment type and segment upload order when segment type is not specified in upload command \(default **0**\)\.
+* **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default **16777216** = 16MB\)\.
+* **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default **4096**\)\.
+* **RandomCacheStepBits** \- Number of bits to specify caching period in generating the dummy file contents \(default **25**, which means 32MB\)\.
 * **LogFileTransfer** \- If set, the transfer information \(uploading and downloading segments\) will be recorded into the file\.
 * **LogFileMessages** \- If set, the transfer information \(all printed messages\) will be recorded into the file\.
 * **LogFileSummary** \- If set, the transfer summary \(parameters and result\) will be recorded into the file\.
@@ -81,7 +81,7 @@ You can check configuration and test accounts using **CONFIG** parameter\. The c
 If you provide only first parameter, the application will print general configuration only and number of configured e\-mail accounts\.
 
 ```
-BackupToMail CONFIG
+BackupToMail.exe CONFIG
 ```
 
 ### Account configuration checking and testing
@@ -89,19 +89,19 @@ BackupToMail CONFIG
 You can provide the account numbers separated by comma \(without space separation\) as second parameter to print loaded configuration about specified account\. For print cofiguration for account 1, 2 and 4, you have to run this command:
 
 ```
-BackupToMail CONFIG 1,2,4
+BackupToMail.exe CONFIG 1,2,4
 ```
 
 You can test SMTP, IMAP and POP3 connection while configuration printing:
 
 ```
-BackupToMail CONFIG 1,2,4 1
+BackupToMail.exe CONFIG 1,2,4 1
 ```
 
 You can also test connection without configuration details to check if all accounts are available and see all connection failures at first glance\.
 
 ```
-BackupToMail CONFIG 1,2,4 2
+BackupToMail.exe CONFIG 1,2,4 2
 ```
 
 Some accounts requires sign in within certain time period since last sign in \(see account terms of use for details\)\. The connection test signs in to every specified server and resets the inactivity time\. In all connection failure cases, there will be printed the error message returned from the server\.
@@ -126,7 +126,7 @@ The map file is textual file and contains as many bytes as number of file segmen
   * **1** \- The segment will not be processed, at the action begin, all **1** occurences will be replaced with **2** and treated as **2**\.
   * **2** \- The segment will not be processed, because it was processed during previous action using the same map file\.
 * After action
-  * **0** \- The segment was should to be processet, but not processed\.
+  * **0** \- The segment was should to be processed, but not processed\.
   * **1** \- The segment was processed during action\.
   * **2** \- The segment was not processed, due to no necessary\.
 
@@ -174,31 +174,31 @@ In 2 and 3 modes, there will be printed the following information in one line pe
 To display information about **file\.map** file related to **file\.zip**, you can run such command:
 
 ```
-BackupToMail MAP 0 "D:\file.zip" "D:\file.map"
+BackupToMail.exe MAP 0 "D:\file.zip" "D:\file.map"
 ```
 
 The only important thing about data file is file size and segment size\. In the command above, the default segment size will be used\. You can use custom segment size to calculate number of segments\.
 
 ```
-BackupToMail MAP 0 "D:\file.zip" "D:\file.map" 1000000
+BackupToMail.exe MAP 0 "D:\file.zip" "D:\file.map" 1000000
 ```
 
 You can use dummy file definition, if you know file size, in this example, the size of simulated file is 500000000 bytes:
 
 ```
-BackupToMail MAP 0 "*500000000,2,," "D:\file.map" 1000000
+BackupToMail.exe MAP 0 "*500000000,2,," "D:\file.map" 1000000
 ```
 
 The file contents are not important, so you can use any valid dummy file definition with desired size\. The only important is the number of segments of data file, so the following command will give the same result as above command:
 
 ```
-BackupToMail MAP 0 "*500,2,," "D:\file.map" 1
+BackupToMail.exe MAP 0 "*500,2,," "D:\file.map" 1
 ```
 
 If you have digest file named **file\.dig**, you can use id to read map file:
 
 ```
-BackupToMail MAP 1 "D:\file.dig" "D:\file.map"
+BackupToMail.exe MAP 1 "D:\file.dig" "D:\file.map"
 ```
 
 In this case, the segment size and number of segments will be read from the digest file, even, if you provide custom segment size\.
@@ -206,7 +206,7 @@ In this case, the segment size and number of segments will be read from the dige
 If the **NameSeparator** in **Config\.txt** is set, you can print information about more than one file at once command, when you set multiple data/digest files and map files\. If you assume, that the **NameSeparator** character is **&#124;**, you can print information about three files by such command:
 
 ```
-BackupToMail MAP 0 "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map"
+BackupToMail.exe MAP 0 "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map"
 ```
 
 The separator character can not be used in item or file name\. Otherwise, you have to change this character in **Config\.txt** and use it in command\. Every list should consist of the same items\. If not, the number of uploaded files will equal with the number of item of the shortest list\. The further items on other lists will be ignored\.
@@ -282,43 +282,43 @@ If item name, data file name or map file name contains spaces, you have to provi
 Upload **file\.zip** using **file\.map** as map file, save item named as **File** from accounts 1 and 2 to accounts 2 and 3, use default settings:
 
 ```
-BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3
+BackupToMail.exe UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3
 ```
 
 Upload **file\.zip** using the same accounts with provide 1000 image width and 1000000 bytes segment length:
 
 ```
-BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 1000000 1 1000
+BackupToMail.exe UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 1000000 1 1000
 ```
 
 Upload **file\.zip** using the same accounts using reverse segment order as binary attachment and default segment length:
 
 ```
-BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 0 10
+BackupToMail.exe UPLOAD File D:\docs\file.zip D:\docs\file.map 1,2 2,3 0 10
 ```
 
 Upload **file\.zip** using four accounts in two groups to store in account 0:
 
 ```
-BackupToMail UPLOAD File D:\docs\file.zip D:\docs\file.map 0,1,..,2,3 0
+BackupToMail.exe UPLOAD File D:\docs\file.zip D:\docs\file.map 0,1,..,2,3 0
 ```
 
 Upload **file\.zip** without map file, save item named as **File** from account 0 to account 0, use default settings:
 
 ```
-BackupToMail UPLOAD File D:\docs\file.zip / 0 0
+BackupToMail.exe UPLOAD File D:\docs\file.zip / 0 0
 ```
 
 Upload **file\.zip** without map file, save item named as **File** from account 0 to account 0, use default settings \- alternative way:
 
 ```
-BackupToMail UPLOAD File D:\docs\file.zip "" 0 0
+BackupToMail.exe UPLOAD File D:\docs\file.zip "" 0 0
 ```
 
 Upload **file with spaces\.zip** using **file with spaces\.map** as map file, save item named as **File** as Base64 encoded in message body from account 0 to account 0\.
 
 ```
-BackupToMail UPLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 0 0 1000000 2
+BackupToMail.exe UPLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 0 0 1000000 2
 ```
 
 ## Upload several files at once
@@ -326,7 +326,7 @@ BackupToMail UPLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user
 If the **NameSeparator** in **Config\.txt** is set, you can upload more than one file at once command, when you set multiple item names, data files and map files\. If you assume, that the **NameSeparator** character is **&#124;**, you can upload three files by such command:
 
 ```
-BackupToMail UPLOAD "File1|File2|File3" "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map" 0 0
+BackupToMail.exe UPLOAD "File1|File2|File3" "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map" 0 0
 ```
 
 The separator character can not be used in item or file name\. Otherwise, you have to change this character in **Config\.txt** and use it in command\. Every list should consist of the same items\. If not, the number of uploaded files will equal with the number of item of the shortest list\. The further items on other lists will be ignored\.
@@ -410,7 +410,7 @@ Set the **Mail0DeleteIdx **value to **0**\. This value means, that index item wi
 If the account is empty, upload some test data, to get from 10 to 100 messages\. You can use the following command:
 
 ```
-BackupToMail UPLOAD "test" "*50000000,2,," "" 4 4 1000000
+BackupToMail.exe UPLOAD "test" "*50000000,2,," "" 4 4 1000000
 ```
 
 This command will generate 50 messages\.
@@ -420,7 +420,7 @@ This command will generate 50 messages\.
 Print the account contents by the following commands:
 
 ```
-BackupToMail DOWNLOAD "test" "" "" 4 1 0
+BackupToMail.exe DOWNLOAD "test" "" "" 4 1 0
 ```
 
 You will get the segment order in the account\. Consider, that the segment order may not be the same as uploaded\.
@@ -430,7 +430,7 @@ You will get the segment order in the account\. Consider, that the segment order
 Perform clearing account using the following command, obserwing the information printed to the screen:
 
 ```
-BackupToMail DOWNLOAD "test" "" "" 4 1 1,2,3,4,5,6
+BackupToMail.exe DOWNLOAD "test" "" "" 4 1 1,2,3,4,5,6
 ```
 
 ### Test result
@@ -492,109 +492,109 @@ There are some examples, if the order is not described, it means forward order:
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages in forward order:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages in backward order:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1 10
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1 10
 ```
 
 Download **File** and save as **file\.zip** without map file from account 1 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip / 1
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip / 1
 ```
 
 Download **File** and save as **file\.zip** without map file from account 1 with reading all messages \- alternative way:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip "" 1
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip "" 1
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from the first to 50:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,..50
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,..50
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to the last:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to 50:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to 50, then account 3 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50,2
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50,2
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading all messages, then account 3 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2
 ```
 
 Download **File** and save as **file\.zip** using **file\.map** as map file from account 1 with reading messages from 30 to 50, then account 3 with reading messages from 20 to 40:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50,2,20..40
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,30..50,2,20..40
 ```
 
 Download **File** and save as **file with spaces\.zip** using **file with spaces\.map** as map file from account 1 with reading all messages:
 
 ```
-BackupToMail DOWNLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 1
+BackupToMail.exe DOWNLOAD File "D:\docs by user\file with spaces.zip" "D:\docs by user\file with spaces.map" 1
 ```
 
 Check in forward order, if **File** item exists on account 1 with reading all messages, in this action data file name is not used:
 
 ```
-BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 1
+BackupToMail.exe DOWNLOAD File dummy D:\docs\file.map 1 1
 ```
 
 Check in backward order, if **File** item exists on account 1 with reading all messages, in this action data file name is not used:
 
 ```
-BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 11
+BackupToMail.exe DOWNLOAD File dummy D:\docs\file.map 1 11
 ```
 
 Check, if **File** item exists on account 1 with reading all messages, delete bad and duplicate messages of this item, in this action data file name is not used:
 
 ```
-BackupToMail DOWNLOAD File dummy D:\docs\file.map 1 1 1,2
+BackupToMail.exe DOWNLOAD File dummy D:\docs\file.map 1 1 1,2
 ```
 
 Delete **File** item from account 1 and 2 in forward order:
 
 ```
-BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 1 3
+BackupToMail.exe DOWNLOAD File dummy D:\docs\file.map 1,2 1 3
 ```
 
 Delete **File** item from account 1 and 2 in backward order:
 
 ```
-BackupToMail DOWNLOAD File dummy D:\docs\file.map 1,2 11 3
+BackupToMail.exe DOWNLOAD File dummy D:\docs\file.map 1,2 11 3
 ```
 
 Download and delete **File** item from account 1 and 2:
 
 ```
-BackupToMail DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2 0 3
+BackupToMail.exe DOWNLOAD File D:\docs\file.zip D:\docs\file.map 1,2 0 3
 ```
 
 Clear account 1 and 2 \(the item name and file name are not important, any file will not be created and not tried to read in **1** or **11** mode\):
 
 ```
-BackupToMail DOWNLOAD File dummy / 1,2 1 3,4,5
+BackupToMail.exe DOWNLOAD File dummy / 1,2 1 3,4,5
 ```
 
 ## Download several files at once
@@ -602,7 +602,7 @@ BackupToMail DOWNLOAD File dummy / 1,2 1 3,4,5
 If the **NameSeparator** in **Config\.txt** is set, you can download more than one file at once command, when you set multiple item names, data files and map files\. If you assume, that the **NameSeparator** character is **&#124;**, you can download three files by such command:
 
 ```
-BackupToMail DOWNLOAD "File1|File2|File3" "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map" 0
+BackupToMail.exe DOWNLOAD "File1|File2|File3" "D:\file1.zip|D:\file2.zip|D:\file3.zip" "D:\file1.map|D:\file2.map|D:\file3.map" 0
 ```
 
 The separator character can not be used in item or file name\. Otherwise, you have to change this character in **Config\.txt** and use it in command\. Every list should consist of the same items\. If not, the number of downloaded files will equal with the number of item of the shortest list\. The further items on other lists will be ignored\.
@@ -641,38 +641,55 @@ To generate or check the digest file, you have provide the following parameters:
 
 1. **DIGEST word** \- generate or check the digest file\.
 2. **Mode** \- One of the following modes:
-  * **0** \- Create digest file based on data file\.
-  * **1** \- Check digest file against data file\.
-3. **Data file name** \- The name of data file, which will used to create or check the digest file
-4. **Digest file name** \- The name of the digest file\.
-5. **Segment size** \- The size of one data file segment\.
+  * **0** \- Create the digest file from the data file\.
+  * **1** \- Check the data file against the digest file\.
+  * **2** \- Correct the data file size\.
+  * **3** \- Correct the data file size and check the data file\.
+3. **Data file name** \- The name of data file, which will used to create or check the digest file\.
+4. **Map file name** \- The map file name\.
+5. **Digest file name** \- The name of the digest file\.
+6. **Segment size** \- The size of one data file segment\.
 
-The first four parameters are required and the fifth parameter is optional\. If the segment size is not provided or incorrect, there will be used the default segment size\.
+The first five parameters are required and the sixth parameter is optional\. If the segment size is not provided or incorrect, there will be used the default segment size\.
 
-To create the digest **SomeArchive\.digest** of **SomeArchive\.zip** file using 1000000 segment size, you have to execute the following command:
-
-```
-BackupToMail DIGEST 0 SomeArchive.zip SomeArchive.digest 1000000
-```
-
-There will be displayed progress of digest creation\.
-
-To check the digest **SomeArchive\.digest** against the **SomeArchive\.zip** file using 1000000 segment size, you have to execute the following command:
+To create the digest **SomeArchive\.dig** of **SomeArchive\.zip** file using **SomeArchive\.map** map file and **1000000** segment size, you have to execute the following command:
 
 ```
-BackupToMail DIGEST 1 SomeArchive.zip SomeArchive.digest 1000000
+BackupToMail.exe DIGEST 0 SomeArchive.zip SomeArchive.map SomeArchive.dig 1000000
 ```
 
-There will be displayed the following information:
+There will be displayed progress of digest creation\. The map file will contains only **1** marks after creating whole digest file\.
+
+To check the file **SomeArchive\.zip** against the **SomeArchive\.dig** file using **SomeArchive\.map** map file and **1000000** segment size, you have to execute the following command:
+
+```
+BackupToMail.exe DIGEST 1 SomeArchive.zip SomeArchive.map SomeArchive.dig 1000000
+```
+
+In the map file \(if map file name is given\), the good segments will be saved as **1** and other segment will be marked as **0**\.
+
+You can do the same operation without map file:
+
+```
+BackupToMail.exe DIGEST 1 SomeArchive.zip / SomeArchive.dig 1000000
+```
+
+If the data file size may be incorrect, you have to execute the following command, which will corect the data file size to match the size stored in digest file \(this command will not check the data file contents against the digest file\):
+
+```
+BackupToMail.exe DIGEST 2 SomeArchive.zip SomeArchive.map SomeArchive.dig 1000000
+```
+
+There will be displayed the following information \(in mode **0**, **1** and **3**\):
 
 
 * Match of the data size and segment size stored in the digest file\.
-* Which digests matches the data file segments\.
+* Progress of creating or checking the digest\.
 * Numbers of matched and mismatched segment digest\.
 
-The digest file can be used as data file substitute to chceck the completeness and correctness of uploaded data without the original data file, especially, when the data file is very large\. You can download the digest file \(mode **5**\) instead of data file \(mode **0**\), the digests will be generated based on the data file segments\.
+The digest file can be used as data file substitute to check the completeness and correctness of uploaded data without the original data file, especially, when the data file is very large\. You can download the digest file \(mode **5**\) instead of data file \(mode **0**\), the digests will be generated based on the data file segments\.
 
-## Checking file
+## Checking uploaded file
 
 BackupToMail offers checking completeness and correctness of uploaded file by six ways:
 
@@ -744,9 +761,339 @@ If you want to delete all existing messages from account, you have to delete map
 
 Note: If you provide several accounts, which has the same segments, the same segments in the account other as first will be treated as duplicates\. It is recommended to run with deletion only on one account at a time\.
 
-# Filling missing segments
+# Reed\-Solomon code
 
-In some cases, there are possible situation, in such some of parts are missing\. Such cases can occur due to sending errors, limits or sometimes due to account errors\. In such situacion you have to reupload missing segments\. BackupToMail does not have such function, but filling can be achieved using upload and download function\.
+Some accounts are not as reliable as user thinks and sometimes loses some messages, statistically from 0 to 10 per thousand, depending on account provider\. So, if you upload larger file, which consists of about 1000 segments or more, you sooner or later may experience losing few segments due to some mysterious reason\. You can prevent from losing data by creating additional code file\. The file size determines, how may missing segments can be recovered\.
+
+## Code generation and recovery principle
+
+The code file is generated using Reed\-Solomon code and can be used to recover missing segments\. You can decide about size of the code as number of data segments\. There are possible two recovery scenarios:
+
+
+* You do not know, which segments are missing or corrupted\. The code allows recovery up to half of the code size\. For example, if code consists of 6 segments or 7 segments, you can recover up to 3 corrupted segments, which will be found automatically\.
+* You know, which segment are missing and you use this information during recovery process\. The code allows recovery as number of segments as code size\. For example, if code consists of 6 segments, you can recover up to 6 segments, if code consists of 7 segments, you can recover up to 7 segments\.
+
+The code file is additional file and must be treated as other regular file\. You can upload it on the same account as another file or store this file locally only\.
+
+The original Reed\-Solomon code uses the serie of n\-bit values, which determines the maximum number of segments \(total data file and code file\)\. One segment usually consists of from 1MB to 100MB of data, depending on message size limit\.
+
+Each segment consists of certain bits \(segment size in bytes multiplied by 8\) and can be splitted into values\. For example, if segment consists of 50MB \(52428800 bytes\), you can interpret this as follwing, for example:
+
+
+* 52428800 8\-bit values
+* 41943040 10\-bit values
+* 26214400 16\-bit values
+* 20971520 20\-bit values
+
+The number of value bits must be a integer divisor of segment size multiplied by 8\. For example, you can not split 52428800 bytes into 24\-bit values, because 24 is not divisor of 52428800\*8=419430400\.
+
+The Reed\-Solomon code is based on the Galois finite fields, the code generation needs one of the primitive polynomials used to generate specified Galois field\. The primitive polynomial can be writtern as number\.
+
+Below, there is presented features for each supported value size in bits\.
+
+| Value bits | Power of 2 | Maximum number of segments | Default polynomial | Values:Bytes |
+| --- | --- | --- | --- | --- |
+| 2 | 4 | 3 | 7 | 8:2 = 4:1 |
+| 3 | 8 | 7 | 11 | 8:3 |
+| 4 | 16 | 15 | 19 | 8:4 = 4:2 = 2:1 |
+| 5 | 32 | 31 | 37 | 8:5 |
+| 6 | 64 | 63 | 67 | 8:6 = 4:3 |
+| 7 | 128 | 127 | 131 | 8:7 |
+| 8 | 256 | 255 | 285 | 8:8 = 4:4 = 1:1 |
+| 9 | 512 | 511 | 529 | 8:9 |
+| 10 | 1024 | 1023 | 1033 | 8:10 = 4:5 |
+| 11 | 2048 | 2047 | 2053 | 8:11 |
+| 12 | 4096 | 4095 | 4179 | 8:12 = 4:6 = 2:3 |
+| 13 | 8192 | 8191 | 8219 | 8:13 |
+| 14 | 16384 | 16383 | 16427 | 8:14 = 4:7 |
+| 15 | 32768 | 32767 | 32771 | 8:15 |
+| 16 | 65536 | 65535 | 65581 | 8:16 = 4:8 = 2:4 = 1:2 |
+| 17 | 131072 | 131071 | 131081 | 8:17 |
+| 18 | 262144 | 262143 | 262183 | 8:18 = 4:9 |
+| 19 | 524288 | 524287 | 524327 | 8:19 |
+| 20 | 1048576 | 1048575 | 1048585 | 8:20 = 4:10 = 2:5 |
+| 21 | 2097152 | 2097151 | 2097157 | 8:21 |
+| 22 | 4194304 | 4194303 | 4194307 | 8:22 = 4:11 |
+| 23 | 8388608 | 8388607 | 8388641 | 8:23 |
+| 24 | 16777216 | 16777215 | 16777243 | 8:24 = 4:12 = 2:6 = 1:3 |
+| 25 | 33554432 | 33554431 | 33554441 | 8:25 |
+| 26 | 67108864 | 67108863 | 67108935 | 8:26 = 4:13 |
+| 27 | 134217728 | 134217727 | 134217767 | 8:27 |
+| 28 | 268435456 | 268435455 | 268435465 | 8:28 = 4:14 = 2:7 |
+| 29 | 536870912 | 536870911 | 536870917 | 8:29 |
+| 30 | 1073741824 | 1073741823 | 1073741907 | 8:30 = 4:15 |
+
+## Performing RS\-code operations
+
+You can perform Reed\-Solomon code related operations by the following command:
+
+
+1. **RSCODE word** \- Perform RS\-code related operation\.
+2. **Mode** \- One of operation modes:
+  * **0** \- Create code file\.
+  * **1** \- Recover files automatically \- do not modify files\.
+  * **2** \- Recover files based on the maps \- do not modify files\.
+  * **3** \- Recover files automatically \- modify files according maps\.
+  * **4** \- Recover files based on the maps \- modify files according maps\.
+  * **5** \- Recover files automatically \- modify files regardless maps\.
+  * **6** \- Recover files based on the maps \- modify files regardless maps\.
+  * **7** \- Resize files to specified size\.
+  * **8** \- Simulate incomplete download\.
+3. **Data file** \- Data file name\.
+4. **Data map** \- Map file for data file\.
+5. **Code file** \- Code file name\.
+6. **Code map** \- Map file for code file\.
+7. **Code segments** \- Number of code segments, used in mode **0** only, not affects in other modes\.
+8. **Segment size** \- Segment size, if **0** or omitted, there will be used the default segment size\.
+9. **Polynomial number** \- Value size or primitive polynomial number:
+  * **0 or omitted** \- Use as small value size as possible with default primitive polynomial\.
+  * **Power of 2 \(4, 8, 16, 32\.\.\.\)** \- Force specified value size with default primitive polynomial\.
+  * **Every other number** \- Force specified primitive polynomial, not every polynomial is actually primitive polynomial\.
+
+Every Galois field has certain set of primitive polynomials, which matches the following formula, the `a` is array of values:
+
+```
+a[n]*x^n + a[n-1]*x^(n-1) + a[n-2]*x^(n-2) + ... + a[2]*x^2 + a[1]*x + a[0]
+```
+
+The `n` value is the number of bits, the every `a[k]` can equal to **0** or **1**, so the `a` array can be represented as number generated using the following formula:
+
+```
+a[n]*2^n + a[n-1]*2^(n-1) + a[n-2]*2^(n-2) + ... + a[2]*4 + a[1]*2 + a[0]*1
+```
+
+Searching for primitive polynomial is complex and is not describet here\. It is recommended to use default polynomial\. If you use number, which represents non\-primitive polynomial, the application will freeze or generate useless code, if you run code generation \(mode 0\)\.
+
+## Generating code file
+
+To protect file from accidentally losing some segments, you have to create code file, which consists of desired number of segments\. For data and code file, there will be created maps, which consists of 1 for every segment\.
+
+For example, to create **Archive\.rsc** code file consisting of 10 segments for **Archive\.zip** data file and create map files \(**Archive\.map** for **Archive\.zip** and **Archive\.rsm** for **Archive\.rsc**\), you can use the following command:
+
+```
+BackupToMail.exe RSCODE 0 Archive.zip Archive.map Archive.rsc Archive.rsm 10
+```
+
+In this case, application will automatically detect and print used value size depending on number of all segments \(totally data file and code file\) and one segment size\. There will be used default segment size\. The previous maps contents does not affect the code generation process\.
+
+If you want to use 10\-bit values, you have to use 2 powered to 10 \(equals **1024**\) as number of primitive polynomial:
+
+```
+BackupToMail.exe RSCODE 0 Archive.zip Archive.map Archive.rsc Archive.rsm 10 0 1024
+```
+
+In this case, there will be used the default polynomial number for 10\-bit values\.
+
+You can also force specified polynomial number:
+
+```
+BackupToMail.exe RSCODE 0 Archive.zip Archive.map Archive.rsc Archive.rsm 10 0 4179
+```
+
+The **4179** polynomial implies using 12\-bit values, because **4179** is greater than 4096 \(2 powered to 12\) and less than 8192 \(2 powered to 13\)\. Important: If you use the number, which represents non\-primitive polynomial, the application will freeze or will generate useless code\.
+
+You can also use another than default segment size, for example 1MB segments:
+
+```
+BackupToMail.exe RSCODE 0 Archive.zip Archive.map Archive.rsc Archive.rsm 10 1048576
+```
+
+Actually, you can use another segment size than segment size, which will be used to upload file\. For example, you can upload file using 50MB segments and generatoe code using 100MB segments\. This may help using less value size\.
+
+## Checking and recovering data file
+
+If you have the data file and code file, you can check, if data file is correct and try to repair data file \(recovery original content\) using code file\.
+
+You have to use the same parameters \(number of code segments, primitive polynomial number\), which was used to create the code file\.
+
+There are two possible recovery modes:
+
+
+* **Recover files automatically** \- The application will detect itself, which segments are corrupted and recovery them, if possible\. This mode works, when there are lost or missing half of the number of code segments, for exaple, if code file consists of 10 or 11 segments, you can recovery up to 5 segments while all other segments survives\. Actually, if some segments are corrupted partially \(for example, code was generated using other segment size than segment size used to upload\), the corrupted segments will be calculated individually for every value\. Thus, in some cases, you can recovery more than half of code segment number if some segments are corrupted partially\. The maps contents does not affect the recovery process, they affects only saving the process result\. For example, if data file consists of 100 segments and code file consists of 10 segments, you can recover all data and code in such cases:
+  * At least 95 segments of data are correct and whole code file survives\.
+  * 98 segments of data are correct and 3 segments of code file are correct\.
+  * Whole data file survives and and at least 5 segments of code file are correct\.
+  * 90 segments of data file are correct, the first half of 5 segments are corrupted, the second half of other 5 segments are corrupted and whole code file survives\.
+* **Recover files based on the maps** \- The maps specified, which segments are missing or corrupted \(fully or partially\)\. In this mode, you can recovery as number of segments as number of code segments\. For example, if code consists of 10 segments, you can recovery up to 10 segments while all other segments survives, if code consists of 11 segments, you can recovery up to 11 segments while all other segments survives\. For example, if data file consists of 100 segments and code file consists of 10 segments, you can recover all data and code in such cases:
+  * At least 90 segments of data are correct, all 10 corrupted segments are marked in map file as **0** and whole code file survives\.
+  * At least 95 segments of data are correct, all 5 corrupted segments are marked in map file for data as **0**, 5 segments of code file are correct and the remaining 5 segments are marked in map for code file as **0**\.
+
+Apart from the recovery modes, there are three possible save modes:
+
+
+* **Do not modify files** \- The recovery proces will not modify files, it will display recovery result only\. This mode can be used to check, if you provide appropriate parameters or to ensure if file is correct\.
+* **Modify files according maps** \- The application will perform recovery process, but there will be saved modifications inside this segments, which are marked as **0** in map file\.
+* **Modify files regardless maps** \- The application can freely modify data file and code file during recovery\.
+
+The recovery and save modes are compines as mode from **1** to **6** as following:
+
+
+* **1** \- Recover files automatically \- do not modify files\.
+* **2** \- Recover files based on the maps \- do not modify files\.
+* **3** \- Recover files automatically \- modify files according maps\.
+* **4** \- Recover files based on the maps \- modify files according maps\.
+* **5** \- Recover files automatically \- modify files regardless maps\.
+* **6** \- Recover files based on the maps \- modify files regardless maps\.
+
+In every mode, the map files will not be modified\. It is not possible, which segments was actually incorrect, especially in automatically modes\. The result will give some informations which can be interpreted as series of values:
+
+
+* **Total values per segment** \- Number of values per segment depending on segment size and value size\.
+* **Values correct already** \- Values of all segments in serie seems be correct, the code values matches to data values\.
+* **Recovered values in data only** \- Some serie values in data file was incorrect and fully recovered, all values in code file was correct already\.
+* **Recovered values in code only** \- Some serie values in code file was incorrect and fully recovered, all values in data file was correct already\.
+* **Recovered values in both data and code** \- Some serie values in both files was incorrect and fully recovered\.
+* **Unrecoverable incorrect values** \- Too many serie values are incorrect and there is not possible to correct\. There also not possible to detect, which values in serie are correct or incorrect already\. If uncorrectable incorrect values exists, it means that there is not possible to fully recovery data file, in some cases, the file may be recovered partially\.
+
+Depending on save mode, none, some or all modified segments will be saved\. The result is splitted to data and code file, thich contains following information:
+
+
+* **Total** \- Total number of file segments\.
+* **Modified and saved** \- Number of segments, which was partially or fully recovered and saved to data od code file\.
+* **Modified and not saved** \- Number of segments, which was partially or fully recovered, but not saved due to selected save mode and map contents\.
+* **Not modified** \- Number of segments, which was not modified due to not necessary or not possibility to recover\.
+
+In most cases, there will be printed general recovery result depending on above number results\.
+
+For example, to check, if file **Archive\.zip** data is correct against to **Archive\.rsc** code file, you can perform mode **1** without map files:
+
+```
+BackupToMail.exe RSCODE 1 Archive.zip / Archive.rsc /
+```
+
+If you want to recovery missing or corrupted segments without maps, you can use the **5** mode, if the code was created using 16\-bit values with default polynomial, you have to provide **65536** as polynomial \(2 powered to 16\):
+
+```
+BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 0 0 65536
+```
+
+If the code was created using 1MB segment size \(other than default\) and was used the **65581** polynomial, which was other than default, you have to provide these values:
+
+```
+BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 0 1048576 65581
+```
+
+If you have the **Archive\.map** map file to the **Archive\.zip** data file and you have the **Archive\.rsm** map file to the **Archive\.rsc** code file, you can recovery more missing segments based on the map file, and only segments marked as missing may be modified:
+
+```
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+```
+
+## Code file and digest file
+
+Assume, that you:
+
+
+* Have the data file **Archive\.zip**, which is corrupted or incomplete\.
+* Have the code file **Archive\.rsc**, which is correct and complete\.
+* Do not have map file for both files\.
+* Recovery data file in automatic mode was not succeeded\.
+* Suspects, that recovery can be possible in based on the maps mode\.
+* Have the digest **Archive\.dig** file\.
+
+In this case, you have to generate the **Archive\.map** file by checking the data file against the digest file, if the file size is incorrect, the size will be corrected:
+
+```
+BackupToMail.exe DIGEST 3 Archive.zip Archive.map Archive.dig
+```
+
+This operaton will detect, which segments of **Archive\.zip** are correct and the file size will be corrected if is incorrect\. You will also get the the **Archive\.map** file, in which correct segments will be marked as **1** and incorret segments will be marked as **0**\.
+
+For **Archive\.rsc** file, you also have to generate the map file\. Because you do not have the digest file, but you are sure, that the code file is correct, you need the map, which all segments of code file are marked as **1**\. To create the **Archive\.rsm** map file, you can use the digest file generation:
+
+```
+BackupToMail.exe DIGEST 0 Archive.rsc Archive.rsm /
+```
+
+The digest file will not be generated, but the **Archive\.rsm** map file will be generated\.
+
+Now, you have the **Archive\.map** map file for **Achive\.zip** data file and **Archive\.rsm** map file for **Archive\.rsc** code file\. Then, you can perform recovery operation using map files:
+
+```
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+```
+
+Now, if **Archive\.zip** file recovery was possible, you will get the recovered data file\. Check the printed recovery result\.
+
+For this scenario, you can run the batch or script file, which contains the following commands:
+
+```
+BackupToMail.exe DIGEST 3 Archive.zip Archive.map Archive.dig
+BackupToMail.exe DIGEST 0 Archive.rsc Archive.rsm /
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+```
+
+If you have the digest file for both data and code files \(**Archive\.dig** for **Archive\.zip** and **Archive\.rsd** for **Archive\.rsc**\), you can use both digest files to recovery original file sizes and maps:
+
+```
+BackupToMail.exe DIGEST 3 Archive.zip Archive.map Archive.dig
+BackupToMail.exe DIGEST 3 Archive.rsc Archive.rsm Archive.rsd
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+```
+
+## Resizing data and code files
+
+If you not downloaded at least one last segments from account, the file size will be incorrect\. The recovery using Reed\-Solomon code needs the correct file of both files\. If you do not have the digest file, you have to know the original file size and correct the size manually\.
+
+To correct size, you can use the **RSCODE** function with mode **7**, providing correct size instead of map file names\. The map files are not needed in this action, the segment size does not affect this function working\.
+
+Assume, that the correct size of **Archive\.zip** is 512354254 and correct size of **Archive\.rsc** is 5000000\.
+
+You can resize both file at a time using the following command:
+
+```
+BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000
+```
+
+If you want to resize single file at a time, provide blank file name and size for secod file, because **RSCODE** requires minimum 6 parameters:
+
+```
+BackupToMail.exe RSCODE 7 Archive.zip 512354254 "" 0
+```
+
+So, if you download both data and code files, you can correct the file sizes and repair them automatically, when number of missing segments are less than number of code segments:
+
+```
+BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000
+BackupToMail.exe RSCODE 3 Archive.zip / Archive.rsc /
+```
+
+## Simulating incomplete download
+
+You can clear some segments in data file and code file to simulate file incomplete download for test purposes\. You can simulate such case using **RSCODE** with mode **8**\.
+
+You have to manually edit the map file to select, which segments will be missing, the **0** means the missing segment, the **1** or **2** simulates surviving segments\.
+
+The number of segments parameter has another meaning in mode 8\. There are possible values:
+
+
+* **0** \- Do not resize files\.
+* **1** \- Resize files like download process is finished, but not all segments was exists\.
+* **2** \- Resize files like download process was broken \(for example, due to power blackout\)\.
+
+The map files will not be modified\.
+
+To simulate incomplete download for **Archive\.zip** using **Archive\.map** and for **Archive\.rsc** using **Archive\.rsm**, run the following command:
+
+```
+BackupToMail.exe RSCODE 8 Archive.zip Archive.map Archive.rsc Archive.rsm 1
+```
+
+If you want to process single file at a time, provide blank file name and size for second file, because **RSCODE** requires minimum 6 parameters:
+
+```
+BackupToMail.exe RSCODE 8 Archive.zip Archive.map "" "" 1
+```
+
+Like every other mode, this mode uses default segment size\. You can use other segment size providing it to command\. For example, if you want to use the segment size 1000000 and simulate broken download process, you can do this by following command for **Archive\.zip** file and **Archive\.map** map:
+
+```
+BackupToMail.exe RSCODE 8 Archive.zip Archive.map "" "" 2 1000000
+```
+
+# Reuploading missing segments
+
+In some cases, there are possible situation, in such some of parts are missing\. Such cases can occur due to sending errors, limits or sometimes due to account errors\. In such case, you have to reupload missing segments\. BackupToMail does not have such function, but filling can be achieved using upload and download function\.
 
 For example, assume that, there is file named **Archive**, which exists on accounts **0** and **1**, but on both accounts some segments are missing, every segment is available from at least one account\. The repairing/filling steps are described below\.
 
@@ -757,22 +1104,22 @@ At the first step, you have to get information, which segments are missing, if a
 If you do not have the file, you can use the mode 1 or 2 \(given file name does not matter, because it will not be read or written\):
 
 ```
-BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 1
-BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 2
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive.map 0 1
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive.map 0 2
 ```
 
 If you have the original file \(saved as **Archive\.zip**\), you can use the mode 3 or 4:
 
 ```
-BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 4
-BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 4
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive.map 0 4
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive.map 0 4
 ```
 
 If you have the digest file \(saved as **Archive\.dig**\), you can use the mode 6 or 7:
 
 ```
-BackupToMail DOWNLOAD Archive Archive.dig Archive.map 0 7
-BackupToMail DOWNLOAD Archive Archive.dig Archive.map 0 7
+BackupToMail.exe DOWNLOAD Archive Archive.dig Archive.map 0 7
+BackupToMail.exe DOWNLOAD Archive Archive.dig Archive.map 0 7
 ```
 
 The generated Archive\.map file will contain information, which segments of Archive exists on account 0\.
@@ -781,40 +1128,101 @@ The generated Archive\.map file will contain information, which segments of Arch
 
 If you have original data file on the disk, you can ship this step\. If not, and you have the same file on the another account, for example in account **1**, you have to download missing segment of the file\. Downloading whole data file is not necessary to reupload missing segments\.
 
-The map file will be modified during downloading, so you have copy the map file:
+The map file will be modified during downloading, so you have copy the map file \(the copy command depends on your operating system\):
 
 ```
 copy Archive.map Archive_copy.map
+cp Archive.map Archive_copy.map
 ```
 
-Then, tou can download missing segments using the copied map file:
+Then, you can download missing segments using the copied map file:
 
 ```
-BackupToMail DOWNLOAD Archive Archive.zip Archive_copy.map 1 0
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive_copy.map 1 0
 ```
 
 If account 1 contains all missing segments, at the result you will get information, that you have all segments of the file, no missing segments\. This information is generated by analyzing map file\. The ral file will probably seem be corrupted, but this file contains only the downloaded segments, not whole data file\. If account 1 does not contain all segments, which are missing on account **0**, but you have the same file on account **2**, you can repeat download proedure on account **2**:
 
 ```
-BackupToMail DOWNLOAD Archive Archive.zip Archive_copy.map 2 0
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive_copy.map 2 0
 ```
 
 The segments downloaded from account 1 will not affected, the map file has information, which segments are have downloaded\.
 
 If you download all missing segments, you can remove the **Archive\_copy\.map** file\.
 
+## Recover missing segments using code file
+
+You can use the code file to recovery missing data segments, if you meet all following conditions:
+
+
+* You do not have any copy of the the original data file in any storage\.
+* You can not download all missing segments from another account\.
+* You have the code file created by **RSCODE** function\.
+* For both data and code file, you meets one of the following conditions:
+  * You know the correct size of the file\.
+  * You have the digest file\.
+
+To recovery missing segments, at the first, you have to remove the map file if exists and download the data file:
+
+```
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive.map 0 0
+```
+
+Next, if you do not have the code file on the disk, but you have stored this file on the account \(for example, as ArchCode item\), you have to download this file also:
+
+```
+BackupToMail.exe DOWNLOAD ArchCode Archive.rsc Archive.rsm 0 0
+```
+
+If you have the digest file for data, you have to automatically correct the data file size, the map file will not be needed:
+
+```
+BackupToMail.exe DIGEST 2 Archive.zip / Archive.dig
+```
+
+If you do not have the digest file, you can manually correct the data file size \(assume, that the data file size is 1000000000\):
+
+```
+BackupToMail.exe RSCODE 7 Archive.zip 1000000000 "" 0
+```
+
+If the code file is alco incomplete and the file size may be incorrect, you have to correct code file size by the similar way\.
+
+If you are sure, that size of both files are correct, you can try to recovery missing segments\.
+
+If number of missing segments \(total of data and code file\) are less than half of number of code file segments, you can try to recovery in automatic mode without using the maps:
+
+```
+BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc /
+```
+
+If the missing segments are more, but less or equal than number of code file segments, you have to ensure, that you have the maps for both files\. If you do not have the map file for code file, because you have the file already, you have to generate the map consisting of all segments marked as **1**, use **DIGEST** function to do this, the digest file will not necessary, so it will not be created\.
+
+```
+BackupToMail.exe DIGEST 0 Archive.rsc Archive.rsm /
+```
+
+Then you have to use the map files to recovery original data file using following command:
+
+```
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+```
+
+If both files was successfully recovered, you can reupload missing segments of both files, as described below\.
+
 ## Reupload missing segments
 
 The last step is upload missing segments on the account 0\. you have to use the map file, which was generated at the first step:
 
 ```
-BackupToMail UPLOAD Archive Archive.zip Archive.map 0 0
+BackupToMail.exe UPLOAD Archive Archive.zip Archive.map 0 0
 ```
 
 There is not matter, which account you will use to upload, the destination account is important\. If you have many segments to upload, you can use multiple accounts \(for example accounts **0** and **1**\) to reduce upload obstruction\.
 
 ```
-BackupToMail UPLOAD Archive Archive.zip Archive.map 0,1 0
+BackupToMail.exe UPLOAD Archive Archive.zip Archive.map 0,1 0
 ```
 
 You will get the information, that all segments are uploaded, because the map file will contains all segments markered as transfered\. You can remove the **Archive\.map** and **Archive\.zip** files at the moment, the files will not needed longer\.
@@ -822,7 +1230,7 @@ You will get the information, that all segments are uploaded, because the map fi
 You can check if really all segments egists using on of download/checking functions such as:
 
 ```
-BackupToMail DOWNLOAD Archive Archive.zip Archive.map 0 2
+BackupToMail.exe DOWNLOAD Archive Archive.zip Archive.map 0 2
 ```
 
 # Message structure
@@ -836,7 +1244,7 @@ The message subject contains the **X** character exactly 7 times, which splits t
 The 6 parts from 1 to 6 can contain only digits and letters from **A** to **F**\. The parts are following:
 
 
-1. Digest of file name \(result of MD5 function\)\.
+1. Digest of item name \(result of MD5 function\)\.
 2. Number of this segment decreased by 1, represented by hex number, the first segment is 0\.
 3. Number of all segments decreased by 1, represented by hex number\.
 4. Size of this segment \(can differ from nominal segment size in last segment\) decreased by 1, represented by hex number\.
@@ -846,11 +1254,11 @@ The 6 parts from 1 to 6 can contain only digits and letters from **A** to **F**\
 The mail can store file segment data inside body or as attachment\. There are supported four segment types:
 
 
-* Binary attachment
-* PNG image attachment
-* Base64 in plain text body
-* PNG image resource used in HTML body
-* PNG image embedded in HTML body
+* Binary attachment\.
+* PNG image attachment\.
+* Base64 in plain text body\.
+* PNG image resource used in HTML body\.
+* PNG image embedded in HTML body\.
 
 ## Binary attachment specification
 
@@ -1044,7 +1452,7 @@ You can create real disk file, which has content the same as dummy file\. To do 
 File creation example using segment size and without statistics and period searching:
 
 ```
-BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" File.bin 10000000
+BackupToMail.exe FILE "*500000000,1,8,3,1,257,7,16,5" File.bin 10000000
 ```
 
 ## Period and statistics
@@ -1056,7 +1464,7 @@ The period search may take a long of time depending on file size\. The progress 
 Example to create file with display simple table with file distribution and period calculation with display period distribution using detailed list without zeros:
 
 ```
-BackupToMail FILE "*500000000,1,8,3,1,257,7,16,5" File.bin 0 1 2
+BackupToMail.exe FILE "*500000000,1,8,3,1,257,7,16,5" File.bin 0 1 2
 ```
 
 # Batch operations
@@ -1066,10 +1474,11 @@ The following operations displays the operation parameters and waits for the con
 
 * **UPLOAD** \- Uploading the file\.
 * **DOWNLOAD** \- Downloading or cheching the file\.
-* **DIGEST** \- Generating or cheching the digest file\.
+* **DIGEST** \- Generating digest file or cheching data file against the digest file\.
+* **RSCODE** \- Generating Reed\-Solomon code or recovering data file\.
 * **FILE** \- Generating the data file based on dummy file parameters\.
 
-If you execute one of the mentioned operations, there will be displayed the question **Do you want to continue \(Yes/No\)**\. If you write one of the following answers \(letter case is not important\), there will be interpreted as **Yes**: **1**, **T**, **TRUE**, **Y**, **YES**\. Other answer will be interpreted as **No**\.
+If you execute one of the operations mentioned above, there will be displayed the question **Do you want to continue \(Yes/No\)**\. If you write one of the following answers \(letter case is not important\), there will be interpreted as **Yes**: **1**, **T**, **TRUE**, **Y**, **YES**\. Other answer will be interpreted as **No**\.
 
 You can ommit the confirmation if you add the BATCH word to operation word ass following:
 
@@ -1077,9 +1486,18 @@ You can ommit the confirmation if you add the BATCH word to operation word ass f
 * **UPLOADBATCH** or **BATCHUPLOAD**
 * **DOWNLOADBATCH** or **BATCHDOWNLOAD**
 * **DIGESTBATCH** or **BATCHDIGEST**
+* **RSCODEBATCH** or **BATCHRSCODE**
 * **FILEBATCH** or **BATCHFILE**
 
 This approach is very usable, when you want to run the BackupToMail from the script or batch file many times \(for example, to upload or download many files\)\.
+
+The remaining operations \(**MAP** and **CONFIG**\) does not require confirmation anyway, because there are the following features:
+
+
+* The header information before operation is not printed\.
+* The general purpose are only check or test something only and print result about it\.
+* The operations does not generate or modify any file or anything in any accont\.
+* In most cases, these operations performing time is very short\.
 
 # Log files
 

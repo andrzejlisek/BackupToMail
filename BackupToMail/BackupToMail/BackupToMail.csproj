@@ -75,6 +75,9 @@
     <Reference Include="System.Buffers">
       <HintPath>..\..\Lib\System.Buffers\system.buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
     </Reference>
+    <Reference Include="ReedSolomon">
+      <HintPath>..\..\Lib\ReedSolomon\sth1123.reedsolomon.2.1.0\lib\net40\ReedSolomon.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConfigFile.cs" />
@@ -92,6 +95,7 @@
     <Compile Include="DigestFile.cs" />
     <Compile Include="RandomSequenceDigest.cs" />
     <Compile Include="RandomSequenceDotNet.cs" />
+    <Compile Include="CodeReedSolomon.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
