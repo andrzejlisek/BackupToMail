@@ -274,14 +274,14 @@ To upload file, you have to run BackupToMail with the following parameters, the 
 6. **Destination account list** \- List of destination accounts, which will be used provide message reipts into **To** field\.
 7. **Segment size** \- The size of on segment other than default\.
 8. **Segment type** \- The segment type and upload segment order other than default \(you can not provide segment type without providing segment size\), using one of the numbers:
-  * **0** \- Binary attachment, ascending segment order\.
-  * **1** \- PNG image attachment, ascending segment order\.
-  * **2** \- Base64 in plain text body, ascending segment order\.
-  * **3** \- PNG image in HTML body, ascending segment order\.
-  * **10** \- Binary attachment, descending segment order\.
-  * **11** \- PNG image attachment, descending segment order\.
-  * **12** \- Base64 in plain text body, descending segment order\.
-  * **13** \- PNG image in HTML body, descending segment order\.
+   * **0** \- Binary attachment, ascending segment order\.
+   * **1** \- PNG image attachment, ascending segment order\.
+   * **2** \- Base64 in plain text body, ascending segment order\.
+   * **3** \- PNG image in HTML body, ascending segment order\.
+   * **10** \- Binary attachment, descending segment order\.
+   * **11** \- PNG image attachment, descending segment order\.
+   * **12** \- Base64 in plain text body, descending segment order\.
+   * **13** \- PNG image in HTML body, descending segment order\.
 9. **Image width** \- The image width used, if segment type is **1** or **3** or **10** or **13** \(you can not provide image width without providing segment type\)\.
 
 If item name, data file name or map file name contains spaces, you have to provide this parameter in quotation signs like "file name with spaces"\. The source and destination account list can not contain a spaces\. Below, there are some examples:
@@ -461,24 +461,24 @@ To download or check file, you have to run BackupToMail with the following param
 4. **Map file path and name** \- Path and name of file, which you want to upload\. You can use the blank name or **/** character as name to not use map file\.
 5. **Source account list with item index intervals** \- Account list separated by commas, but pair of numbers separated by two dots \(**\.\.**\) or one number and two dots is interpreted as index interval filter \(see examples\)\.
 6. **Download or check mode** \- One of available modes and index browsing direction, which uses the same principle \(some of this modes implies header download only\), the mode and direction is a number from the following:
-  * **0** or **10** \- Download data file \(default mode, which is used, if this parameter is not specified\)\.
-  * **1** or **11** \- Check existence without body control\.
-  * **2** or **12** \- Check existence with body control\.
-  * **3** or **13** \- Check the header digest using data file\.
-  * **4** or **14** \- Check the body contents using data file\.
-  * **5** or **15** \- Download digest file\.
-  * **6** or **16** \- Check the header digest using digest file\.
-  * **7** or **17** \- Check the body contents using digest file\.
-  * From **0** to **7** \- forward browsing direction\.
-  * From **10** to **17** \- backward browsing direction\.
+   * **0** or **10** \- Download data file \(default mode, which is used, if this parameter is not specified\)\.
+   * **1** or **11** \- Check existence without body control\.
+   * **2** or **12** \- Check existence with body control\.
+   * **3** or **13** \- Check the header digest using data file\.
+   * **4** or **14** \- Check the body contents using data file\.
+   * **5** or **15** \- Download digest file\.
+   * **6** or **16** \- Check the header digest using digest file\.
+   * **7** or **17** \- Check the body contents using digest file\.
+   * From **0** to **7** \- forward browsing direction\.
+   * From **10** to **17** \- backward browsing direction\.
 7. **Delete option list** \- List of values separated by commas, which indicates, which messages must be deleted \(additionaly with download/check action\):
-  * **0** \- None\.
-  * **1** \- Bad \- after certain number of attempts in a row\.
-  * **2** \- Duplicate\.
-  * **3** \- This file\.
-  * **4** \- Other messages\.
-  * **5** \- Other files\.
-  * **6** \- Undownloadable messages \- after certain number of attempts in a row\.
+   * **0** \- None\.
+   * **1** \- Bad \- after certain number of attempts in a row\.
+   * **2** \- Duplicate\.
+   * **3** \- This file\.
+   * **4** \- Other messages\.
+   * **5** \- Other files\.
+   * **6** \- Undownloadable messages \- after certain number of attempts in a row\.
 
 Because the downloading or checking principle is browsing messages item by item \(information, which messages contains desired item, not exists\), BackupToMail can browse the message index in forward or backward dorection\. The browsing order depends on downoad od check mode as following:
 
@@ -648,10 +648,10 @@ To generate or check the digest file, you have provide the following parameters:
 
 1. **DIGEST word** \- generate or check the digest file\.
 2. **Mode** \- One of the following modes:
-  * **0** \- Create the digest file from the data file\.
-  * **1** \- Check the data file against the digest file\.
-  * **2** \- Correct the data file size\.
-  * **3** \- Correct the data file size and check the data file\.
+   * **0** \- Create the digest file from the data file\.
+   * **1** \- Check the data file against the digest file\.
+   * **2** \- Correct the data file size\.
+   * **3** \- Correct the data file size and check the data file\.
 3. **Data file name** \- The name of data file, which will used to create or check the digest file\.
 4. **Map file name** \- The map file name\.
 5. **Digest file name** \- The name of the digest file\.
@@ -837,16 +837,16 @@ You can perform Reed\-Solomon code related operations by the following command:
 
 1. **RSCODE word** \- Perform RS\-code related operation\.
 2. **Mode** \- One of operation modes:
-  * **0** \- Create code file\.
-  * **1** \- Recover files automatically \- do not modify files\.
-  * **2** \- Recover files based on the maps \- do not modify files\.
-  * **3** \- Recover files automatically \- modify files according maps\.
-  * **4** \- Recover files based on the maps \- modify files according maps\.
-  * **5** \- Recover files automatically \- modify files regardless maps\.
-  * **6** \- Recover files based on the maps \- modify files regardless maps\.
-  * **7** \- Resize files to specified size in bytes\.
-  * **8** \- Resize files to specified size in segments\.
-  * **9** \- Simulate incomplete download\.
+   * **0** \- Create code file\.
+   * **1** \- Recover files automatically \- do not modify files\.
+   * **2** \- Recover files based on the maps \- do not modify files\.
+   * **3** \- Recover files automatically \- modify files according maps\.
+   * **4** \- Recover files based on the maps \- modify files according maps\.
+   * **5** \- Recover files automatically \- modify files regardless maps\.
+   * **6** \- Recover files based on the maps \- modify files regardless maps\.
+   * **7** \- Resize files to specified size in bytes\.
+   * **8** \- Resize files to specified size in segments\.
+   * **9** \- Simulate incomplete download\.
 3. **Data file** \- Data file name\.
 4. **Data map** \- Map file for data file\.
 5. **Code file** \- Code file name\.
@@ -854,9 +854,9 @@ You can perform Reed\-Solomon code related operations by the following command:
 7. **Code segments** \- Number of code segments, used in mode **0** only, not affects in other modes\.
 8. **Segment size** \- Segment size, if **0** or omitted, there will be used the default segment size\.
 9. **Polynomial number** \- Value size or primitive polynomial number:
-  * **0 or omitted** \- Use as small value size as possible with default primitive polynomial\.
-  * **Power of 2 \(4, 8, 16, 32\.\.\.\)** \- Force specified value size with default primitive polynomial\.
-  * **Every other number** \- Force specified primitive polynomial, not every polynomial is actually primitive polynomial\.
+   * **0 or omitted** \- Use as small value size as possible with default primitive polynomial\.
+   * **Power of 2 \(4, 8, 16, 32\.\.\.\)** \- Force specified value size with default primitive polynomial\.
+   * **Every other number** \- Force specified primitive polynomial, not every polynomial is actually primitive polynomial\.
 
 Every Galois field has certain set of primitive polynomials, which matches the following formula, the `a` is array of values:
 
@@ -1327,19 +1327,19 @@ The two generators are very fast and simple, but the length of period and value 
 
 1. **File size** \- file size in bytes\.
 2. **Generator type** \- Pseudo random number generator type:
-  * **0** \- Linear congruential
-  * **1** \- Fibonacci
+   * **0** \- Linear congruential
+   * **1** \- Fibonacci
 3. **Number of bits** \- there is a number of least significant bits of state value, which are used to generate byte value:
-  * **1** \- use one least significant bit, use 8 values to generate one byte\.
-  * **2** \- use two least significant bits, use 4 values to generate one byte\.
-  * **4** \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
-  * **8** \- use whole value modulo by 256 as one byte\.
+   * **1** \- use one least significant bit, use 8 values to generate one byte\.
+   * **2** \- use two least significant bits, use 4 values to generate one byte\.
+   * **4** \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
+   * **8** \- use whole value modulo by 256 as one byte\.
 4. **A constant** \- vaue used in generator\.
 5. **B constant** \- vaue used in generator\.
 6. **M constant** \- vaue used in generator\.
 7. **Initial vector** \- the vector values are the further parameters:
-  * Linear congruential: Exactly one value\.
-  * Fibonacci: At least one value, for exaple if vector consists of 3 values, the definition has totally 9 parameters including 7 parameters for generator
+   * Linear congruential: Exactly one value\.
+   * Fibonacci: At least one value, for exaple if vector consists of 3 values, the definition has totally 9 parameters including 7 parameters for generator
 
 For example, to create whole dummy file having 1000 bytes length, when **number of bits** is specified to 2, there will be generated 4000 values and sequence of foru values will be used to generate one byte\.
 
@@ -1379,9 +1379,9 @@ For digest generator, the parameters are as following:
 
 1. **File size** \- file size in bytes\.
 2. **Generator type** \- Pseudo random number generator type:
-  * **2** \- Digest
-3. **Data prefix **\- the hexadecimal representation of prefix data, it can be blank
-4. **Data suffix** \- the hexadecimal representation of suffix data, it can be blank
+   * **2** \- Digest
+3. **Data prefix** \- the hexadecimal representation of prefix data, it can be blank\.
+4. **Data suffix** \- the hexadecimal representation of suffix data, it can be blank\.
 
 The generator uses the MD5 digest function to generate next 16 bytes\. The argument of the first digest \(used for the first 16 bytes\) is generated by concatenation of the prefix and suffix\. The every next digest argument is generated by concatenation of prefix, previous digest and suffix\.
 
@@ -1433,10 +1433,10 @@ For \.NET internal generator, the parameters are as following:
 
 1. **File size** \- file size in bytes\.
 2. **Generator type** \- Pseudo random number generator type:
-  * **3** \- \.NET internal
+   * **3** \- \.NET internal
 3. **Generator seed** \- This parameter is optional:
-  * If exists: The seed number for generator \(from 0 to 2147483647\)\.
-  * If not exists: The cryptographic generator will be used instead of standard generator\.
+   * If exists: The seed number for generator \(from 0 to 2147483647\)\.
+   * If not exists: The cryptographic generator will be used instead of standard generator\.
 
 If the last parameter is ommited, the another algorithm will be used, which has the following features comparing to standard algorithm:
 
@@ -1459,15 +1459,15 @@ You can create real disk file, which has content the same as dummy file\. To do 
 * **File name** \- Real disk file name\.
 * **Segment size** \- segment size used to display file creation progress\. If ommited or set as **0**, there will be used default segment size\.
 * **File stats mode** \- One of the file statistics modes:
-  * **0 \- No statistics** \- do not create statistics\.
-  * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
-  * **2 \- Value list with zeros** \- print count of each value including zeros\.
-  * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+   * **0 \- No statistics** \- do not create statistics\.
+   * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+   * **2 \- Value list with zeros** \- print count of each value including zeros\.
+   * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
 * **Period stats mode** \- One of the period statistics modes:
-  * **0 \- No statistics** \- do not create statistics, the period will not be searched\.
-  * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
-  * **2 \- Value list with zeros** \- print count of each value including zeros\.
-  * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+   * **0 \- No statistics** \- do not create statistics, the period will not be searched\.
+   * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+   * **2 \- Value list with zeros** \- print count of each value including zeros\.
+   * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
 
 File creation example using segment size and without statistics and period searching:
 
