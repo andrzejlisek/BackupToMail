@@ -1327,13 +1327,13 @@ The two generators are very fast and simple, but the length of period and value 
 
 1. **File size** \- file size in bytes\.
 2. **Generator type** \- Pseudo random number generator type:
-  * 0 \- Linear congruential
-  * 1 \- Fibonacci
+  * **0** \- Linear congruential
+  * **1** \- Fibonacci
 3. **Number of bits** \- there is a number of least significant bits of state value, which are used to generate byte value:
-  * 1 \- use one least significant bit, use 8 values to generate one byte\.
-  * 2 \- use two least significant bits, use 4 values to generate one byte\.
-  * 4 \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
-  * 8 \- use whole value modulo by 256 as one byte\.
+  * **1** \- use one least significant bit, use 8 values to generate one byte\.
+  * **2** \- use two least significant bits, use 4 values to generate one byte\.
+  * **4** \- use least significant nibble, use 2 values to generate one byte consisting of two nibbles\.
+  * **8** \- use whole value modulo by 256 as one byte\.
 4. **A constant** \- vaue used in generator\.
 5. **B constant** \- vaue used in generator\.
 6. **M constant** \- vaue used in generator\.
@@ -1379,7 +1379,7 @@ For digest generator, the parameters are as following:
 
 1. **File size** \- file size in bytes\.
 2. **Generator type** \- Pseudo random number generator type:
-  * 2 \- Digest
+  * **2** \- Digest
 3. **Data prefix **\- the hexadecimal representation of prefix data, it can be blank
 4. **Data suffix** \- the hexadecimal representation of suffix data, it can be blank
 
@@ -1433,8 +1433,8 @@ For \.NET internal generator, the parameters are as following:
 
 1. **File size** \- file size in bytes\.
 2. **Generator type** \- Pseudo random number generator type:
-  * 3 \- \.NET internal
-3. **Generator seed **\- This parameter is optional:
+  * **3** \- \.NET internal
+3. **Generator seed** \- This parameter is optional:
   * If exists: The seed number for generator \(from 0 to 2147483647\)\.
   * If not exists: The cryptographic generator will be used instead of standard generator\.
 
