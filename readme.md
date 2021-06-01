@@ -75,6 +75,7 @@ You can check configuration and test accounts using **CONFIG** parameter\. The c
   * **0** \- Print configuration without test\.
   * **1** \- Connection test and print full configuration\.
   * **2** \- Connection test and print test results only\.
+* **Number of tries** \- The maximum number of attepts to connect to the same server before raising error message\. If not provided, there will be performed single try\.
 
 ### General configuration checking
 
@@ -98,10 +99,16 @@ You can test SMTP, IMAP and POP3 connection while configuration printing:
 BackupToMail.exe CONFIG 1,2,4 1
 ```
 
-You can also test connection without configuration details to check if all accounts are available and see all connection failures at first glance\.
+You can also test connection without configuration details to check if all accounts are available and see all connection failures at first glance:
 
 ```
 BackupToMail.exe CONFIG 1,2,4 2
+```
+
+Some accounts raises connection error once per several connection\. You can provide maximum number of tries for each test connection\. If the conection was good, there will be printed **OK**, otherwise, there will be printed error message from last connection attempt\. For the following command, there will be performed maximum 5 tries for each server of each account before printing error message:
+
+```
+BackupToMail.exe CONFIG 1,2,4 1 5
 ```
 
 Some accounts requires sign in within certain time period since last sign in \(see account terms of use for details\)\. The connection test signs in to every specified server and resets the inactivity time\. In all connection failure cases, there will be printed the error message returned from the server\.
@@ -837,8 +844,9 @@ You can perform Reed\-Solomon code related operations by the following command:
   * **4** \- Recover files based on the maps \- modify files according maps\.
   * **5** \- Recover files automatically \- modify files regardless maps\.
   * **6** \- Recover files based on the maps \- modify files regardless maps\.
-  * **7** \- Resize files to specified size\.
-  * **8** \- Simulate incomplete download\.
+  * **7** \- Resize files to specified size in bytes\.
+  * **8** \- Resize files to specified size in segments\.
+  * **9** \- Simulate incomplete download\.
 3. **Data file** \- Data file name\.
 4. **Data map** \- Map file for data file\.
 5. **Code file** \- Code file name\.
@@ -1058,9 +1066,21 @@ BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000
 BackupToMail.exe RSCODE 3 Archive.zip / Archive.rsc /
 ```
 
+You can resize files providing number of segments instead of size in bytes using mode **8**\. Many file types allows to be slightly larger than original file size, while the end of file is padded with zeros\. If the defailt segment size is 1000000, you can perform the following command:
+
+```
+BackupToMail.exe RSCODE 8 Archive.zip 513 Archive.rsc 5
+```
+
+The code file will have original size, but the data file will be slightly oversized\. You also provide segment size instead of using default segment size:
+
+```
+BackupToMail.exe RSCODE 8 Archive.zip 513 Archive.rsc 5 0 1000000
+```
+
 ## Simulating incomplete download
 
-You can clear some segments in data file and code file to simulate file incomplete download for test purposes\. You can simulate such case using **RSCODE** with mode **8**\.
+You can clear some segments in data file and code file to simulate file incomplete download for test purposes\. You can simulate such case using **RSCODE** with mode **9**\.
 
 You have to manually edit the map file to select, which segments will be missing, the **0** means the missing segment, the **1** or **2** simulates surviving segments\.
 
@@ -1076,19 +1096,19 @@ The map files will not be modified\.
 To simulate incomplete download for **Archive\.zip** using **Archive\.map** and for **Archive\.rsc** using **Archive\.rsm**, run the following command:
 
 ```
-BackupToMail.exe RSCODE 8 Archive.zip Archive.map Archive.rsc Archive.rsm 1
+BackupToMail.exe RSCODE 9 Archive.zip Archive.map Archive.rsc Archive.rsm 1
 ```
 
 If you want to process single file at a time, provide blank file name and size for second file, because **RSCODE** requires minimum 6 parameters:
 
 ```
-BackupToMail.exe RSCODE 8 Archive.zip Archive.map "" "" 1
+BackupToMail.exe RSCODE 9 Archive.zip Archive.map "" "" 1
 ```
 
 Like every other mode, this mode uses default segment size\. You can use other segment size providing it to command\. For example, if you want to use the segment size 1000000 and simulate broken download process, you can do this by following command for **Archive\.zip** file and **Archive\.map** map:
 
 ```
-BackupToMail.exe RSCODE 8 Archive.zip Archive.map "" "" 2 1000000
+BackupToMail.exe RSCODE 9 Archive.zip Archive.map "" "" 2 1000000
 ```
 
 # Reuploading missing segments

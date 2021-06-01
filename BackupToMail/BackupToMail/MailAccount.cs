@@ -75,23 +75,23 @@ namespace BackupToMail
             }
         }
 
-        public void PrintConnTest(int AccNo)
+        public void PrintConnTest(int AccNo, int NumOfTries)
         {
             string Prefix = "Account " + AccNo.ToString() + ": ";
             if ((SmtpHost != "") && (SmtpPort > 0))
             {
                 Console.Write(Prefix + "SMTP - ");
-                Console.WriteLine(SmtpClient_Test());
+                Console.WriteLine(SmtpClient_Test(NumOfTries));
             }
             if ((ImapHost != "") && (ImapPort > 0))
             {
                 Console.Write(Prefix + "IMAP - ");
-                Console.WriteLine(ImapClient_Test());
+                Console.WriteLine(ImapClient_Test(NumOfTries));
             }
             if ((Pop3Host != "") && (Pop3Port > 0))
             {
                 Console.Write(Prefix + "POP3 - ");
-                Console.WriteLine(Pop3Client_Test());
+                Console.WriteLine(Pop3Client_Test(NumOfTries));
             }
         }
 
@@ -99,7 +99,7 @@ namespace BackupToMail
         /// Print account information on the console
         /// </summary>
         /// <param name="TestConn"></param>
-        public void PrintInfo(int TestConn)
+        public void PrintInfo(int TestConn, int NumOfTries)
         {
             Console.WriteLine("E-mail: " + Address);
             Console.WriteLine("Logn: " + Login);
@@ -117,7 +117,7 @@ namespace BackupToMail
                 if ((SmtpHost != "") && (SmtpPort > 0))
                 {
                     Console.Write(" - ");
-                    Console.WriteLine(SmtpClient_Test());
+                    Console.WriteLine(SmtpClient_Test(NumOfTries));
                 }
                 else
                 {
@@ -141,7 +141,7 @@ namespace BackupToMail
                 if ((ImapHost != "") && (ImapPort > 0))
                 {
                     Console.Write(" - ");
-                    Console.WriteLine(ImapClient_Test());
+                    Console.WriteLine(ImapClient_Test(NumOfTries));
                 }
                 else
                 {
@@ -165,7 +165,7 @@ namespace BackupToMail
                 if ((Pop3Host != "") && (Pop3Port > 0))
                 {
                     Console.Write(" - ");
-                    Console.WriteLine(Pop3Client_Test());
+                    Console.WriteLine(Pop3Client_Test(NumOfTries));
                 }
                 else
                 {
@@ -236,76 +236,97 @@ namespace BackupToMail
         /// Test SMTP connection possibility
         /// </summary>
         /// <returns>Test result message</returns>
-        public string SmtpClient_Test()
+        public string SmtpClient_Test(int NumOfTries)
         {
-            using (CancellationTokenSource cancel = new CancellationTokenSource ())
+            string ReturnMessage = "";
+            while (NumOfTries > 0)
             {
-                try
+                using (CancellationTokenSource cancel = new CancellationTokenSource())
                 {
-                    using(SmtpClient SmtpClient__ = SmtpClient_(cancel))
+                    try
                     {
-                        SmtpClient__.Disconnect(true, cancel.Token);
+                        using (SmtpClient SmtpClient__ = SmtpClient_(cancel))
+                        {
+                            SmtpClient__.Disconnect(true, cancel.Token);
+                        }
+                        ReturnMessage = "OK";
+                        NumOfTries = 0;
                     }
-                    return "OK";
+                    catch (Exception e)
+                    {
+                        ReturnMessage = "Error: " + MailSegment.ExcMsg(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    return "Error: " + MailSegment.ExcMsg(e);
-                }
+                NumOfTries--;
             }
+            return ReturnMessage;
         }
 
         /// <summary>
         /// Test IMAP connection possibility
         /// </summary>
         /// <returns>Test result message</returns>
-        public string ImapClient_Test()
+        public string ImapClient_Test(int NumOfTries)
         {
-            using (CancellationTokenSource cancel = new CancellationTokenSource ())
+            string ReturnMessage = "";
+            while (NumOfTries > 0)
             {
-                try
+                using (CancellationTokenSource cancel = new CancellationTokenSource())
                 {
-                    int Msg = -1;
-                    using(ImapClient ImapClient__ = ImapClient_(cancel, false))
+                    try
                     {
-                        Msg = ImapClient__.Inbox.Count;
-                        ImapClient__.Inbox.Close();
-                        ImapClient__.Disconnect(true, cancel.Token);
+                        int Msg = -1;
+                        using (ImapClient ImapClient__ = ImapClient_(cancel, false))
+                        {
+                            Msg = ImapClient__.Inbox.Count;
+                            ImapClient__.Inbox.Close();
+                            ImapClient__.Disconnect(true, cancel.Token);
+                        }
+                        ReturnMessage = "OK (" + Msg + " messages)";
+                        NumOfTries = 0;
                     }
-                    return "OK (" + Msg + " messages)";
+                    catch (Exception e)
+                    {
+                        ReturnMessage = "Error: " + MailSegment.ExcMsg(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    return "Error: " + MailSegment.ExcMsg(e);
-                }
+                NumOfTries--;
             }
+            return ReturnMessage;
         }
 
         /// <summary>
         /// Test POP3 connection possibility
         /// </summary>
         /// <returns>Test result message</returns>
-        public string Pop3Client_Test()
+        public string Pop3Client_Test(int NumOfTries)
         {
-            using (CancellationTokenSource cancel = new CancellationTokenSource ())
+            string ReturnMessage = "";
+            while (NumOfTries > 0)
             {
-                try
+                using (CancellationTokenSource cancel = new CancellationTokenSource())
                 {
-                    int Msg = -1;
-                    using(Pop3Client Pop3Client__ = Pop3Client_(cancel))
+                    try
                     {
-                        Msg = Pop3Client__.Count;
-                        Pop3Client__.Disconnect(true, cancel.Token);
+                        int Msg = -1;
+                        using (Pop3Client Pop3Client__ = Pop3Client_(cancel))
+                        {
+                            Msg = Pop3Client__.Count;
+                            Pop3Client__.Disconnect(true, cancel.Token);
+                        }
+                        ReturnMessage = "OK (" + Msg + " messages)";
+                        NumOfTries = 0;
                     }
-                    return "OK (" + Msg + " messages)";
+                    catch (Exception e)
+                    {
+                        ReturnMessage = "Error: " + MailSegment.ExcMsg(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    return "Error: " + MailSegment.ExcMsg(e);
-                }
+                NumOfTries--;
             }
+            return ReturnMessage;
         }
-        
+
         /// <summary>
         /// Create new SMTP connection
         /// </summary>

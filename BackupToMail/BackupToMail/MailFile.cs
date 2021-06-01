@@ -1156,8 +1156,8 @@ namespace BackupToMail
                 return;
             }
 
-            long FileSize__Min = (SegmentCount - 1) * (SegmentSize) + 1;
-            long FileSize__Max = SegmentCount * SegmentSize;
+            long FileSize__Min = (long)(SegmentCount - 1) * (long)(SegmentSize) + 1L;
+            long FileSize__Max = (long)SegmentCount * (long)SegmentSize;
 
             Monitor.Enter(DataF_);
             if ((!IsDummyFile) && (ParamDataFile != null) && (!ParamDataRead))
@@ -1165,7 +1165,7 @@ namespace BackupToMail
                 FileStream DataS = ParamDigestMode ? DataOpenRW(false) : DataOpen();
                 if (ParamDigestMode)
                 {
-                    if (DataS.Length >= 16)
+                    if (DataS.Length >= 16L)
                     {
                         byte[] Buf1 = new byte[16];
                         //byte[] Buf2 = new byte[16];
@@ -1200,7 +1200,7 @@ namespace BackupToMail
                     SegmentData = MailSegment.StrToBin(SegmentSize.ToString("X").PadLeft(16, '0'));
                     DataS.Write(SegmentData, 0, 16);
 
-                    int DigestDataSize__ = ((SegmentCount + 1) * DigestSize);
+                    long DigestDataSize__ = ((long)(SegmentCount + 1) * (long)DigestSize);
                     if (DataS.Length < DigestDataSize__)
                     {
                         DataS.Seek(0, SeekOrigin.End);

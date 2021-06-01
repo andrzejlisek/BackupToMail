@@ -623,6 +623,7 @@ namespace BackupToMail
             // Configuration mode
             if (ProgMode == 3)
             {
+                int NumOfTries = 1;
                 int TestConn = 0;
                 if (args.Length >= 3)
                 {
@@ -630,6 +631,14 @@ namespace BackupToMail
                     if (TestConn < 0)
                     {
                         TestConn = 0;
+                    }
+                }
+                if (args.Length >= 4)
+                {
+                    NumOfTries = StrToInt(args[3]);
+                    if (NumOfTries < 1)
+                    {
+                        NumOfTries = 1;
                     }
                 }
                 if (TestConn != 2)
@@ -658,11 +667,11 @@ namespace BackupToMail
                             {
                                 Console.WriteLine();
                                 Console.WriteLine("Account " + Acc[i][0] + ":");
-                                MailSegment.MailAccountList[Acc[i][0]].PrintInfo(TestConn);
+                                MailSegment.MailAccountList[Acc[i][0]].PrintInfo(TestConn, NumOfTries);
                             }
                             if (TestConn == 2)
                             {
-                                MailSegment.MailAccountList[Acc[i][0]].PrintConnTest(Acc[i][0]);
+                                MailSegment.MailAccountList[Acc[i][0]].PrintConnTest(Acc[i][0], NumOfTries);
                             }
                         }
                     }
@@ -1257,7 +1266,7 @@ namespace BackupToMail
                     }
                     if (StrToInt(args[1]) == 7)
                     {
-                        Console.WriteLine("Resize files to specified size");
+                        Console.WriteLine("Resize files to specified size in bytes");
                         DataM = StrToLong(args[3]).ToString();
                         CodeM = StrToLong(args[5]).ToString();
 
@@ -1266,6 +1275,15 @@ namespace BackupToMail
                     }
                     if (StrToInt(args[1]) == 8)
                     {
+                        Console.WriteLine("Resize files to specified size in segments");
+                        DataM = StrToLong(args[3]).ToString();
+                        CodeM = StrToLong(args[5]).ToString();
+
+                        if (StrToLong(args[3]) < 0) { DataM = "0"; }
+                        if (StrToLong(args[5]) < 0) { CodeM = "0"; }
+                    }
+                    if (StrToInt(args[1]) == 9)
+                    {
                         Console.WriteLine("Simulate incomplete download");
                     }
                     if (DataF != null)
@@ -1273,9 +1291,19 @@ namespace BackupToMail
                         Console.WriteLine("Data file: " + DataF);
                         if (DataM != null)
                         {
-                            if (StrToInt(args[1]) == 7)
+                            if ((StrToInt(args[1]) == 7) || (StrToInt(args[1]) == 8))
                             {
-                                Console.WriteLine("Desired data file size: " + DataM);
+                                if (StrToInt(args[1]) == 7)
+                                {
+                                    Console.WriteLine("Desired data file size in bytes: " + DataM);
+                                }
+                                if (StrToInt(args[1]) == 8)
+                                {
+                                    Console.WriteLine("Desired data file size in segments: " + DataM);
+                                    Console.WriteLine("Segment size: " + SegS);
+                                    DataM = (long.Parse(DataM) * (long)SegS).ToString();
+                                    Console.WriteLine("Desired data file size in bytes: " + DataM);
+                                }
                             }
                             else
                             {
@@ -1292,9 +1320,19 @@ namespace BackupToMail
                         Console.WriteLine("Code file: " + CodeF);
                         if (CodeM != null)
                         {
-                            if (StrToInt(args[1]) == 7)
+                            if ((StrToInt(args[1]) == 7) || (StrToInt(args[1]) == 8))
                             {
-                                Console.WriteLine("Desired code file size: " + CodeM);
+                                if (StrToInt(args[1]) == 7)
+                                {
+                                    Console.WriteLine("Desired code file size in bytes: " + CodeM);
+                                }
+                                if (StrToInt(args[1]) == 8)
+                                {
+                                    Console.WriteLine("Desired code file size in segments: " + CodeM);
+                                    Console.WriteLine("Segment size: " + SegS);
+                                    CodeM = (long.Parse(CodeM) * (long)SegS).ToString();
+                                    Console.WriteLine("Desired code file size in bytes: " + CodeM);
+                                }
                             }
                             else
                             {
@@ -1324,7 +1362,7 @@ namespace BackupToMail
                             case 2: Console.WriteLine("File resize: download process broken"); break;
                         }
                     }
-                    if (StrToInt(args[1]) != 7)
+                    if ((StrToInt(args[1]) != 7) && (StrToInt(args[1]) != 8))
                     {
                         Console.WriteLine("Segment size: " + SegS);
                     }
@@ -1363,7 +1401,7 @@ namespace BackupToMail
             }
 
             // Help and information
-            Console.WriteLine("BackupToMail - command-line application to use mailbox as backup storage.");
+            Console.WriteLine("BackupToMail - command-line tool for using e-mail accounts as backup storage.");
             Console.WriteLine("");
             Console.WriteLine("Upload file:");
             Console.WriteLine("BackupToMail UPLOAD <item name> <data file> <map file>");
@@ -1435,8 +1473,9 @@ namespace BackupToMail
             Console.WriteLine(" 4 - Recover files based on the maps - modify files according maps");
             Console.WriteLine(" 5 - Recover files automatically - modify files regardless maps");
             Console.WriteLine(" 6 - Recover files based on the maps - modify files regardless maps");
-            Console.WriteLine(" 7 - Resize files to specified size");
-            Console.WriteLine(" 8 - Simulate incomplete download");
+            Console.WriteLine(" 7 - Resize files to specified size in bytes");
+            Console.WriteLine(" 8 - Resize files to specified size in segments");
+            Console.WriteLine(" 9 - Simulate incomplete download");
             Console.WriteLine();
             Console.WriteLine("Create file based on dummy file generator:");
             Console.WriteLine("BackupToMail FILE <dummy file definition> <file name>");
@@ -1448,8 +1487,8 @@ namespace BackupToMail
             Console.WriteLine(" 3 - Value list without zeros");
             Console.WriteLine();
             Console.WriteLine("Print configuration and connection test:");
-            Console.WriteLine("BackupToMail CONFIG <account list by commas> [<connection test mode>]");
-            Console.WriteLine("Connection test modes:");
+            Console.WriteLine("BackupToMail CONFIG <account list by commas> [<test mode> <number of tries>]");
+            Console.WriteLine("Test modes:");
             Console.WriteLine(" 0 - Print configuration without test (default)");
             Console.WriteLine(" 1 - Connection test and print full configuration");
             Console.WriteLine(" 2 - Connection test and print test results only");

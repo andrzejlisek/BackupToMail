@@ -228,7 +228,7 @@ namespace BackupToMail
         public void Proc(int Mode, string DataFile, string DataMapFile, string CodeFile, string CodeMapFile, int CodeSegments, int SegmentSize)
         {
             // Resize data and map files
-            if (Mode == 7)
+            if ((Mode == 7) || (Mode == 8))
             {
                 ResizeFile("Data", "data", DataFile, DataMapFile);
                 Console.WriteLine();
@@ -237,7 +237,7 @@ namespace BackupToMail
             }
 
             // Clear some segments according the map file
-            if (Mode == 8)
+            if (Mode == 9)
             {
                 SimulateClear("Data", "data", DataFile, DataMapFile, SegmentSize, CodeSegments);
                 Console.WriteLine();
