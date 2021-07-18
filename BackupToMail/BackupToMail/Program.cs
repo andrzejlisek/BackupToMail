@@ -68,6 +68,10 @@ namespace BackupToMail
         /// <returns></returns>
         static bool StrToBool(string S)
         {
+            if (S == null)
+            {
+                return false;
+            }
             S = S.Trim();
             if ((S == "1") || (S.ToUpperInvariant() == "TRUE") || (S.ToUpperInvariant() == "YES") || (S.ToUpperInvariant() == "T") || (S.ToUpperInvariant() == "Y"))
             {
@@ -78,7 +82,53 @@ namespace BackupToMail
                 return false;
             }
         }
-        
+
+        public static bool PromptContinue(bool NeedPrompt)
+        {
+            if (NeedPrompt)
+            {
+                Console.Write("Do you want to continue (Yes/No)? ");
+                string X = "";
+                while (X == "")
+                {
+                    X = Console.ReadLine();
+                    if (X == null)
+                    {
+                        return false;
+                    }
+                    X = X.Trim();
+                }
+                return StrToBool(X);
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        public static bool PromptConfirm(bool NeedPrompt)
+        {
+            if (NeedPrompt)
+            {
+                Console.Write("Do you want to continue (Yes/No)? ");
+                string X = "";
+                while (X == "")
+                {
+                    X = Console.ReadLine();
+                    if (X == null)
+                    {
+                        return false;
+                    }
+                    X = X.Trim();
+                }
+                return StrToBool(X);
+            }
+            else
+            {
+                return true;
+            }
+        }
+
         /// <summary>
         /// Parse number list separated by comma
         /// Parameter can be a number or the interval (NumMin..NumMax)
@@ -224,10 +274,14 @@ namespace BackupToMail
                     case "DIGEST": ProgMode = 5; break;
                     case "BATCHDIGEST": ProgMode = 15; break;
                     case "DIGESTBATCH": ProgMode = 15; break;
+                    case "CONFIRMDIGEST": ProgMode = 25; break;
+                    case "DIGESTCONFIRM": ProgMode = 25; break;
 
                     case "RSCODE": ProgMode = 7; break;
                     case "BATCHRSCODE": ProgMode = 17; break;
                     case "RSCODEBATCH": ProgMode = 17; break;
+                    case "CONFIRMRSCODE": ProgMode = 27; break;
+                    case "RSCODECONFIRM": ProgMode = 27; break;
 
                     case "CONFIG": ProgMode = 3; break;
                     case "MAP": ProgMode = 6; break;
@@ -372,16 +426,13 @@ namespace BackupToMail
                 }
                 Console.WriteLine();
                 
-                bool Continue = true;
-                if (ProgMode == 1)
-                {
-                    Console.Write("Do you want to continue (Yes/No)? ");
-                    Continue = StrToBool(Console.ReadLine());
-                }
+                bool Continue = PromptContinue(ProgMode == 1);
                 if (Continue)
                 {
                     MailSegment.Console_WriteLine_("");
                     MailSegment.Console_WriteLine_("");
+                    MailSegment.LogSum("");
+                    MailSegment.LogSum("");
                     for (int i = 0; i < WelcomeMsg.Count; i++)
                     {
                         MailSegment.Console_WriteLine_(WelcomeMsg[i]);
@@ -390,6 +441,8 @@ namespace BackupToMail
                     MailSegment.FileUpload(ItemCount, ItemName, ItemData, ItemMap, AccSrc.ToArray(), AccDst.ToArray(), SegmentSize, SegmentType, SegmentImgSize);
                     MailSegment.Console_WriteLine_("");
                     MailSegment.Console_WriteLine_("");
+                    MailSegment.LogSum("");
+                    MailSegment.LogSum("");
                 }
                 return;
             }
@@ -598,16 +651,13 @@ namespace BackupToMail
                 }
                 Console.WriteLine();
 
-                bool Continue = true;
-                if (ProgMode == 2)
-                {
-                    Console.Write("Do you want to continue (Yes/No)? ");
-                    Continue = StrToBool(Console.ReadLine());
-                }
+                bool Continue = PromptContinue(ProgMode == 2);
                 if (Continue)
                 {
                     MailSegment.Console_WriteLine_("");
                     MailSegment.Console_WriteLine_("");
+                    MailSegment.LogSum("");
+                    MailSegment.LogSum("");
                     for (int i = 0; i < WelcomeMsg.Count; i++)
                     {
                         MailSegment.Console_WriteLine_(WelcomeMsg[i]);
@@ -616,6 +666,8 @@ namespace BackupToMail
                     MailSegment.FileDownload(ItemCount, ItemName, ItemData, ItemMap, AccSrc.ToArray(), AccMin.ToArray(), AccMax.ToArray(), FileDownloadMode_, FileDeleteMode_, FileDownloadReverseOrder);
                     MailSegment.Console_WriteLine_("");
                     MailSegment.Console_WriteLine_("");
+                    MailSegment.LogSum("");
+                    MailSegment.LogSum("");
                 }
                 return;
             }
@@ -685,18 +737,16 @@ namespace BackupToMail
                 int CreateStats = 0;
                 int CreatePeriod = 0;
 
-                long DummyFileSize = 0;
-
-                string DummyName = MailFile.FileNameToPath(args[1]);
-                string FileName = MailFile.FileNameToPath(args[2]);
-                long DummySegmentSize = 0;
+                string FileNameSrc = MailFile.FileNameToPath(args[1]);
+                string FileNameDst = MailFile.FileNameToPath(args[2]);
+                int SegmentSize__ = 0;
                 if (args.Length > 3)
                 {
-                    DummySegmentSize = StrToInt(args[3]);
+                    SegmentSize__ = StrToInt(args[3]);
                 }
-                if (DummySegmentSize <= 0)
+                if (SegmentSize__ <= 0)
                 {
-                    DummySegmentSize = MailSegment.DefaultSegmentSize;
+                    SegmentSize__ = MailSegment.DefaultSegmentSize;
                 }
                 if (args.Length > 4)
                 {
@@ -714,240 +764,72 @@ namespace BackupToMail
                         CreatePeriod = 0;
                     }
                 }
-                Console.WriteLine("Dummy file: " + DummyName);
-                Console.WriteLine("Real file: " + FileName);
-                Console.WriteLine("Segment size: " + DummySegmentSize);
+
+
+
+                List<string> WelcomeMsg = new List<string>();
+
+                if (FileNameSrc != null)
+                {
+                    WelcomeMsg.Add("Source file: " + FileNameSrc);
+                }
+                else
+                {
+                    WelcomeMsg.Add("No source file");
+                }
+                if (FileNameDst != null)
+                {
+                    WelcomeMsg.Add("Destination file: " + FileNameDst);
+                }
+                else
+                {
+                    WelcomeMsg.Add("No destination file");
+                }
+                WelcomeMsg.Add("Segment size: " + SegmentSize__);
                 switch (CreateStats)
                 {
-                    case 0: Console.WriteLine("File statistics: No statistics"); break;
-                    case 1: Console.WriteLine("File statistics: Simplified distribution table"); break;
-                    case 2: Console.WriteLine("File statistics: Value list with zeros"); break;
-                    case 3: Console.WriteLine("File statistics: Value list without zeros"); break;
+                    case 0: WelcomeMsg.Add("File statistics: No statistics"); break;
+                    case 1: WelcomeMsg.Add("File statistics: Simplified distribution table"); break;
+                    case 2: WelcomeMsg.Add("File statistics: Value list with zeros"); break;
+                    case 3: WelcomeMsg.Add("File statistics: Value list without zeros"); break;
                 }
                 switch (CreatePeriod)
                 {
-                    case 0: Console.WriteLine("Period statistics: No statistics (period will not be searched)"); break;
-                    case 1: Console.WriteLine("Period statistics: Simplified distribution table"); break;
-                    case 2: Console.WriteLine("Period statistics: Value list with zeros"); break;
-                    case 3: Console.WriteLine("Period statistics: Value list without zeros"); break;
+                    case 0: WelcomeMsg.Add("Period statistics: No statistics (period will not be searched)"); break;
+                    case 1: WelcomeMsg.Add("Period statistics: Simplified distribution table"); break;
+                    case 2: WelcomeMsg.Add("Period statistics: Value list with zeros"); break;
+                    case 3: WelcomeMsg.Add("Period statistics: Value list without zeros"); break;
+                }
+                for (int i = 0; i < WelcomeMsg.Count; i++)
+                {
+                    Console.WriteLine(WelcomeMsg[i]);
                 }
                 Console.WriteLine();
 
-                bool Continue = true;
-                if (ProgMode == 4)
-                {
-                    Console.Write("Do you want to continue (Yes/No)? ");
-                    Continue = StrToBool(Console.ReadLine());
-                }
+                bool Continue = PromptContinue(ProgMode == 4);
                 if (Continue)
                 {
-                    if (DummyName.StartsWith(MailFile.DummyFileSign, StringComparison.InvariantCulture))
+                    MailSegment.Console_WriteLine_("");
+                    MailSegment.Console_WriteLine_("");
+                    MailSegment.LogSum("");
+                    MailSegment.LogSum("");
+                    for (int i = 0; i < WelcomeMsg.Count; i++)
                     {
-                        RandomSequence RandomSequence_ = RandomSequence.CreateRS(DummyName.Substring(1), MailSegment.RandomCacheStep);
-                        if (RandomSequence_ != null)
-                        {
-                            DummyFileSize = RandomSequence.DummyFileSize;
-                            long SegmentI = 0;
-                            long DispI = 1;
-                            long DispL = DummyFileSize / DummySegmentSize;
-                            if ((DummyFileSize % DummySegmentSize) > 0)
-                            {
-                                DispL++;
-                            }
-                            try
-                            {
-                                Stopwatch_ SW = new Stopwatch_();
-                                FileStream FS_ = new FileStream(FileName, FileMode.Create, FileAccess.Write);
-
-                                if (CreateStats > 0)
-                                {
-                                    RandomSequence_.StatsReset(true);
-                                }
-                                else
-                                {
-                                    RandomSequence_.StatsReset(false);
-                                }
-                                while (SegmentI < DummyFileSize)
-                                {
-                                    Console.Write(DispI + "/" + DispL + " - ");
-                                    if (DummySegmentSize > (DummyFileSize - SegmentI))
-                                    {
-                                        DummySegmentSize = (DummyFileSize - SegmentI);
-                                    }
-
-                                    byte[] Raw = RandomSequence_.GenSeq(SegmentI, DummySegmentSize);
-                                    FS_.Write(Raw, 0, (int)DummySegmentSize);
-
-                                    SegmentI += DummySegmentSize;
-                                    DispI++;
-                                    Console.WriteLine("OK - " + MailSegment.TimeHMSM(SW.Elapsed()));
-                                }
-                                FS_.Close();
-                                Console.WriteLine("File created in time: " + MailSegment.TimeHMSM(SW.Elapsed()));
-                                if (CreateStats > 0)
-                                {
-                                    Console.WriteLine();
-                                    DisplayStats("File distribution", RandomSequence_.Stats, CreateStats);
-                                }
-                            }
-                            catch (Exception e)
-                            {
-                                Console.WriteLine("File creation error: " + e.Message);
-                            }
-
-
-                            if (CreatePeriod > 0)
-                            {
-                                Console.WriteLine();
-                                Console.WriteLine("Searching for sequence period");
-
-                                FileStream FS = new FileStream(FileName, FileMode.Open, FileAccess.Read);
-                                long PeriodBufferSize = DummySegmentSize;
-                                byte[] PeriodArray0 = new byte[PeriodBufferSize];
-                                byte[] PeriodArray1 = new byte[PeriodBufferSize];
-
-                                if (PeriodBufferSize > DummyFileSize)
-                                {
-                                    PeriodBufferSize = (int)DummyFileSize;
-                                }
-
-                                long PeriodSize = 0;
-                                int PeriodChunks;
-                                int PeriodChunkOffset;
-                                long PeriodChunkSize;
-                                long PeriodChunkSize0;
-                                long PeriodFilePos;
-
-                                Stopwatch_ SW__ = new Stopwatch_();
-                                SW__.Reset();
-
-                                ulong[] PeriodStats = new ulong[256];
-                                for (int i = 0; i < 256; i++)
-                                {
-                                    PeriodStats[i] = 0;
-                                }
-
-                                long WorkTime = 0;
-                                for (long i = 1; i < DummyFileSize; i++)
-                                {
-                                    FS.Seek(i - 1, SeekOrigin.Begin);
-                                    FS.Read(PeriodArray0, 0, 1);
-                                    PeriodStats[PeriodArray0[0]]++;
-
-                                    bool IsPeriodical = true;
-
-                                    PeriodChunkSize = PeriodBufferSize;
-                                    PeriodChunkSize0 = i;
-                                    PeriodChunks = (int)(i / PeriodBufferSize);
-                                    if ((i % PeriodBufferSize) > 0)
-                                    {
-                                        PeriodChunks++;
-                                    }
-
-                                    long PeriodCount = (DummyFileSize / i);
-                                    if ((DummyFileSize % i) > 0)
-                                    {
-                                        PeriodCount++;
-                                    }
-
-                                    PeriodChunkOffset = 0;
-                                    for (int ii = 0; ii < PeriodChunks; ii++)
-                                    {
-                                        PeriodFilePos = PeriodChunkOffset;
-
-                                        if (PeriodChunkSize > PeriodChunkSize0)
-                                        {
-                                            PeriodChunkSize = PeriodChunkSize0;
-                                        }
-
-                                        // Read the first period occurence and treat as pattern
-                                        FS.Seek(PeriodFilePos, SeekOrigin.Begin);
-                                        FS.Read(PeriodArray0, 0, (int)PeriodChunkSize);
-
-                                        int PeriodChunkSize__ = 0;
-                                        for (long iii = (PeriodCount - 2); iii >= 0; iii--)
-                                        {
-                                            PeriodFilePos += i;
-                                            PeriodChunkSize__ = (int)PeriodChunkSize;
-                                            if (iii == 0)
-                                            {
-                                                int FileRemain = (int)(DummyFileSize - PeriodFilePos);
-                                                if (PeriodChunkSize__ > FileRemain)
-                                                {
-                                                    PeriodChunkSize__ = FileRemain;
-                                                }
-                                            }
-
-                                            // Read the period occurence other than first and compare with pattern,
-                                            // if doest match the pattern, the reading and comparing will be broken
-                                            if (PeriodChunkSize__ > 0)
-                                            {
-                                                FS.Seek(PeriodFilePos, SeekOrigin.Begin);
-                                                FS.Read(PeriodArray1, 0, (int)PeriodChunkSize);
-
-                                                for (int iiii = (PeriodChunkSize__ - 1); iiii >= 0; iiii--)
-                                                {
-                                                    if (PeriodArray0[iiii] != PeriodArray1[iiii])
-                                                    {
-                                                        IsPeriodical = false;
-
-                                                        // Break all check iteration if data has no period by length given by i
-                                                        ii = PeriodChunks;
-                                                        iii = (-1);
-                                                        break;
-                                                    }
-                                                }
-                                            }
-
-                                            if (WorkTime < SW__.Elapsed())
-                                            {
-                                                while (WorkTime < SW__.Elapsed())
-                                                {
-                                                    WorkTime += 1000L;
-                                                }
-                                                Console.WriteLine("Period " + i + "/" + DummyFileSize + " (" + (DummyFileSize > 0 ? (i * 100 / DummyFileSize) : 0) + "%); occurence " + (PeriodCount - iii - 1) + "/" + PeriodCount + " (" + (PeriodCount > 0 ? (((PeriodCount - iii - 1) * 100) / PeriodCount) : 0) + "%)");
-                                            }
-                                        }
-                                        PeriodChunkOffset += (int)PeriodChunkSize;
-
-                                        PeriodChunkSize0 -= PeriodChunkSize;
-
-                                    }
-
-                                    if (IsPeriodical)
-                                    {
-                                        PeriodSize = i;
-                                        break;
-                                    }
-                                }
-                                FS.Close();
-
-                                if (PeriodSize > 0)
-                                {
-                                    Console.WriteLine("Sequence period length: " + PeriodSize);
-                                    Console.WriteLine("Period search time: " + MailSegment.TimeHMSM(SW__.Elapsed()));
-                                    Console.WriteLine();
-                                    DisplayStats("Sequence period distribution", PeriodStats, CreatePeriod);
-                                }
-                                else
-                                {
-                                    Console.WriteLine("Sequence has no period");
-                                    Console.WriteLine("Period search time: " + MailSegment.TimeHMSM(SW__.Elapsed()));
-                                    Console.WriteLine();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine(RandomSequence.ErrorMsg);
-                        }
+                        MailSegment.Console_WriteLine_(WelcomeMsg[i]);
+                        MailSegment.LogSum(WelcomeMsg[i]);
                     }
+                    RandomSequenceFile RandomSequenceFile_ = new RandomSequenceFile();
+                    RandomSequenceFile_.CreateFile(FileNameSrc, FileNameDst, SegmentSize__, CreateStats, CreatePeriod);
+                    MailSegment.Console_WriteLine_("");
+                    MailSegment.Console_WriteLine_("");
+                    MailSegment.LogSum("");
+                    MailSegment.LogSum("");
                 }
                 return;
             }
 
             // Create digest or check data file against digest
-            if (((ProgMode == 5) || (ProgMode == 15)) && (args.Length > 4))
+            if (((ProgMode == 5) || (ProgMode == 15) || (ProgMode == 25)) && (args.Length > 4))
             {
                 ItemData[0] = MailFile.FileNameToPath(args[2]);
                 ItemMap[0] = MailFile.FileNameToPath(args[3]);
@@ -966,54 +848,67 @@ namespace BackupToMail
                     SegS = MailSegment.DefaultSegmentSize;
                 }
 
+                List<string> WelcomeMsg = new List<string>();
                 if ((StrToInt(args[1]) >= 0) && (StrToInt(args[1]) <= 3))
                 {
                     DigestFile DF_ = new DigestFile();
                     if (StrToInt(args[1]) == 0)
                     {
-                        Console.WriteLine("Create the digest file from the data file");
+                        WelcomeMsg.Add("Create the digest file from the data file");
                     }
                     if (StrToInt(args[1]) == 1)
                     {
-                        Console.WriteLine("Check the data file against the digest file");
+                        WelcomeMsg.Add("Check the data file against the digest file");
                     }
                     if (StrToInt(args[1]) == 2)
                     {
-                        Console.WriteLine("Correct the data file size");
+                        WelcomeMsg.Add("Correct the data file size");
                     }
                     if (StrToInt(args[1]) == 3)
                     {
-                        Console.WriteLine("Correct the data file size and check the data file");
+                        WelcomeMsg.Add("Correct the data file size and check the data file");
                     }
-                    Console.WriteLine("Data file: " + ItemData[0]);
+                    WelcomeMsg.Add("Data file: " + ItemData[0]);
                     if (ItemMap[0] != null)
                     {
-                        Console.WriteLine("Map file: " + ItemMap[0]);
+                        WelcomeMsg.Add("Map file: " + ItemMap[0]);
                     }
                     else
                     {
-                        Console.WriteLine("No map file");
+                        WelcomeMsg.Add("No map file");
                     }
                     if (ItemName[0] != null)
                     {
-                        Console.WriteLine("Digest file: " + ItemName[0]);
+                        WelcomeMsg.Add("Digest file: " + ItemName[0]);
                     }
                     else
                     {
-                        Console.WriteLine("No digest file");
+                        WelcomeMsg.Add("No digest file");
                     }
-                    Console.WriteLine("Segment size: " + SegS);
+                    WelcomeMsg.Add("Segment size: " + SegS);
+                    for (int i = 0; i < WelcomeMsg.Count; i++)
+                    {
+                        Console.WriteLine(WelcomeMsg[i]);
+                    }
                     Console.WriteLine();
 
-                    bool Continue = true;
-                    if (ProgMode == 5)
-                    {
-                        Console.Write("Do you want to continue (Yes/No)? ");
-                        Continue = StrToBool(Console.ReadLine());
-                    }
+                    bool Continue = PromptContinue((ProgMode == 5) || (ProgMode == 25));
                     if (Continue)
                     {
-                        DF_.Proc(StrToInt(args[1]), ItemData[0], ItemMap[0], ItemName[0], SegS);
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.LogSum("");
+                        MailSegment.LogSum("");
+                        for (int i = 0; i < WelcomeMsg.Count; i++)
+                        {
+                            MailSegment.Console_WriteLine_(WelcomeMsg[i]);
+                            MailSegment.LogSum(WelcomeMsg[i]);
+                        }
+                        DF_.Proc(StrToInt(args[1]), ItemData[0], ItemMap[0], ItemName[0], SegS, (ProgMode == 25));
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.LogSum("");
+                        MailSegment.LogSum("");
                     }
                     return;
                 }
@@ -1182,7 +1077,7 @@ namespace BackupToMail
             }
 
             // Reed-Solomon code operations
-            if (((ProgMode == 7) || (ProgMode == 17)) && (args.Length >= 6))
+            if (((ProgMode == 7) || (ProgMode == 17) || (ProgMode == 27)) && (args.Length >= 7))
             {
                 CodeReedSolomon CRS = new CodeReedSolomon();
 
@@ -1191,27 +1086,38 @@ namespace BackupToMail
                 string CodeF = MailFile.FileNameToPath(args[4]);
                 string CodeM = MailFile.FileNameToPath(args[5]);
 
-                int CodeSegs = (args.Length > 6) ? StrToInt(args[6]) : 0;
-                int SegS = -1;
-                if (args.Length > 7)
+                int CodeSegs = (args.Length > 7) ? StrToInt(args[7]) : 0;
+
+                int SegPerUnit = 0;
+                if (args.Length > 6)
                 {
-                    if (StrToInt(args[7]) > 0)
+                    if (StrToInt(args[6]) > 0)
                     {
-                        SegS = StrToInt(args[7]);
+                        SegPerUnit = StrToInt(args[6]);
                     }
                 }
-                int PolyInt = 0;
+
+                int SegS = -1;
                 if (args.Length > 8)
                 {
                     if (StrToInt(args[8]) > 0)
                     {
-                        PolyInt = StrToInt(args[8]);
+                        SegS = StrToInt(args[8]);
+                    }
+                }
+
+                int PolyInt = 0;
+                if (args.Length > 9)
+                {
+                    if (StrToInt(args[9]) > 0)
+                    {
+                        PolyInt = StrToInt(args[9]);
                     }
                 }
 
                 if (CodeSegs <= 0)
                 {
-                    if (StrToInt(args[1]) == 8)
+                    if (StrToInt(args[1]) == 9)
                     {
                         CodeSegs = 0;
                     }
@@ -1232,50 +1138,59 @@ namespace BackupToMail
                 }
                 CRS.SetPolynomialNumber(PolyInt);
 
-                if ((StrToInt(args[1]) >= 0) || (StrToInt(args[1]) <= 8))
+                if ((StrToInt(args[1]) >= 0) && (StrToInt(args[1]) <= 9))
                 {
+                    List<string> WelcomeMsg = new List<string>();
+
                     DigestFile DF_ = new DigestFile();
 
                     if (StrToInt(args[1]) == 0)
                     {
-                        Console.WriteLine("Create code file");
+                        WelcomeMsg.Add("Create code file");
                     }
                     if (StrToInt(args[1]) == 1)
                     {
-                        Console.WriteLine("Recover files automatically - do not modify files");
+                        WelcomeMsg.Add("Recover files automatically - do not modify files");
                     }
                     if (StrToInt(args[1]) == 2)
                     {
-                        Console.WriteLine("Recover files based on the maps - do not modify files");
+                        WelcomeMsg.Add("Recover files based on the maps - do not modify files");
                     }
                     if (StrToInt(args[1]) == 3)
                     {
-                        Console.WriteLine("Recover files automatically - modify files according maps");
+                        WelcomeMsg.Add("Recover files automatically - modify files according maps");
                     }
                     if (StrToInt(args[1]) == 4)
                     {
-                        Console.WriteLine("Recover files based on the maps - modify files according maps");
+                        WelcomeMsg.Add("Recover files based on the maps - modify files according maps");
                     }
                     if (StrToInt(args[1]) == 5)
                     {
-                        Console.WriteLine("Recover files automatically - modify files regardless maps");
+                        WelcomeMsg.Add("Recover files automatically - modify files regardless maps");
                     }
                     if (StrToInt(args[1]) == 6)
                     {
-                        Console.WriteLine("Recover files based on the maps - modify files regardless maps");
+                        WelcomeMsg.Add("Recover files based on the maps - modify files regardless maps");
                     }
                     if (StrToInt(args[1]) == 7)
                     {
-                        Console.WriteLine("Resize files to specified size in bytes");
-                        DataM = StrToLong(args[3]).ToString();
-                        CodeM = StrToLong(args[5]).ToString();
-
-                        if (StrToLong(args[3]) < 0) { DataM = "0"; }
-                        if (StrToLong(args[5]) < 0) { CodeM = "0"; }
+                        WelcomeMsg.Add("Analyze map files for recovery");
                     }
                     if (StrToInt(args[1]) == 8)
                     {
-                        Console.WriteLine("Resize files to specified size in segments");
+                        if (SegPerUnit < 0)
+                        {
+                            SegPerUnit = 0;
+                        }
+                        SegPerUnit = SegPerUnit % 2;
+                        if (SegPerUnit == 0)
+                        {
+                            WelcomeMsg.Add("Resize files to specified size in bytes");
+                        }
+                        if (SegPerUnit == 1)
+                        {
+                            WelcomeMsg.Add("Resize files to specified size in segments");
+                        }
                         DataM = StrToLong(args[3]).ToString();
                         CodeM = StrToLong(args[5]).ToString();
 
@@ -1284,113 +1199,133 @@ namespace BackupToMail
                     }
                     if (StrToInt(args[1]) == 9)
                     {
-                        Console.WriteLine("Simulate incomplete download");
+                        WelcomeMsg.Add("Simulate incomplete download");
                     }
                     if (DataF != null)
                     {
-                        Console.WriteLine("Data file: " + DataF);
+                        WelcomeMsg.Add("Data file: " + DataF);
                         if (DataM != null)
                         {
-                            if ((StrToInt(args[1]) == 7) || (StrToInt(args[1]) == 8))
+                            if (StrToInt(args[1]) == 8)
                             {
-                                if (StrToInt(args[1]) == 7)
+                                if (SegPerUnit == 0)
                                 {
-                                    Console.WriteLine("Desired data file size in bytes: " + DataM);
+                                    WelcomeMsg.Add("Desired data file size in bytes: " + DataM);
                                 }
-                                if (StrToInt(args[1]) == 8)
+                                if (SegPerUnit == 1)
                                 {
-                                    Console.WriteLine("Desired data file size in segments: " + DataM);
-                                    Console.WriteLine("Segment size: " + SegS);
+                                    WelcomeMsg.Add("Desired data file size in segments: " + DataM);
+                                    WelcomeMsg.Add("Segment size: " + SegS);
                                     DataM = (long.Parse(DataM) * (long)SegS).ToString();
-                                    Console.WriteLine("Desired data file size in bytes: " + DataM);
+                                    WelcomeMsg.Add("Desired data file size in bytes: " + DataM);
                                 }
                             }
                             else
                             {
-                                Console.WriteLine("Map file for data: " + DataM);
+                                WelcomeMsg.Add("Map file for data: " + DataM);
                             }
                         }
                         else
                         {
-                            Console.WriteLine("No map file for data");
+                            WelcomeMsg.Add("No map file for data");
                         }
                     }
                     if (CodeF != null)
                     {
-                        Console.WriteLine("Code file: " + CodeF);
+                        WelcomeMsg.Add("Code file: " + CodeF);
                         if (CodeM != null)
                         {
-                            if ((StrToInt(args[1]) == 7) || (StrToInt(args[1]) == 8))
+                            if (StrToInt(args[1]) == 8)
                             {
-                                if (StrToInt(args[1]) == 7)
+                                if (SegPerUnit == 0)
                                 {
-                                    Console.WriteLine("Desired code file size in bytes: " + CodeM);
+                                    WelcomeMsg.Add("Desired code file size in bytes: " + CodeM);
                                 }
-                                if (StrToInt(args[1]) == 8)
+                                if (SegPerUnit == 1)
                                 {
-                                    Console.WriteLine("Desired code file size in segments: " + CodeM);
-                                    Console.WriteLine("Segment size: " + SegS);
+                                    WelcomeMsg.Add("Desired code file size in segments: " + CodeM);
+                                    WelcomeMsg.Add("Segment size: " + SegS);
                                     CodeM = (long.Parse(CodeM) * (long)SegS).ToString();
-                                    Console.WriteLine("Desired code file size in bytes: " + CodeM);
+                                    WelcomeMsg.Add("Desired code file size in bytes: " + CodeM);
                                 }
                             }
                             else
                             {
-                                Console.WriteLine("Map file for code: " + CodeM);
+                                WelcomeMsg.Add("Map file for code: " + CodeM);
                             }
                         }
                         else
                         {
-                            Console.WriteLine("No map file for code");
+                            WelcomeMsg.Add("No map file for code");
                         }
                     }
-                    if (StrToInt(args[1]) == 0)
+                    if ((StrToInt(args[1]) != 8) && (StrToInt(args[1]) != 9))
                     {
-                        Console.WriteLine("Code segments: " + CodeSegs);
-                    }
-                    if (StrToInt(args[1]) == 8)
-                    {
-                        if (CodeSegs < 0)
+                        if (SegPerUnit < 1)
                         {
-                            CodeSegs = 0;
+                            SegPerUnit = 1;
                         }
-                        CodeSegs = CodeSegs % 3;
-                        switch (CodeSegs)
+                        WelcomeMsg.Add("Segments per unit: " + SegPerUnit);
+                    }
+                    if (StrToInt(args[1]) >= 0)
+                    {
+                        WelcomeMsg.Add("Code units: " + CodeSegs);
+                    }
+                    if (StrToInt(args[1]) == 9)
+                    {
+                        if (SegPerUnit < 0)
                         {
-                            case 0: Console.WriteLine("File resize: none"); break;
-                            case 1: Console.WriteLine("File resize: download process finished"); break;
-                            case 2: Console.WriteLine("File resize: download process broken"); break;
+                            SegPerUnit = 0;
+                        }
+                        SegPerUnit = SegPerUnit % 3;
+                        switch (SegPerUnit)
+                        {
+                            case 0: WelcomeMsg.Add("File resize: none"); break;
+                            case 1: WelcomeMsg.Add("File resize: download process finished"); break;
+                            case 2: WelcomeMsg.Add("File resize: download process broken"); break;
                         }
                     }
-                    if ((StrToInt(args[1]) != 7) && (StrToInt(args[1]) != 8))
+                    if (StrToInt(args[1]) != 8)
                     {
-                        Console.WriteLine("Segment size: " + SegS);
+                        WelcomeMsg.Add("Segment size: " + SegS);
                     }
 
-                    if (StrToInt(args[1]) <= 6)
+                    if (StrToInt(args[1]) <= 7)
                     {
                         if (CRS.PolynomialNumber > 0)
                         {
-                            Console.WriteLine("Bits per value: " + CRS.NumberOfBits);
-                            Console.WriteLine("Primitive polynomial: " + CRS.PolynomialNumber);
+                            WelcomeMsg.Add("Bits per value: " + CRS.NumberOfBits);
+                            WelcomeMsg.Add("Primitive polynomial: " + CRS.PolynomialNumber);
                         }
                         else
                         {
-                            Console.WriteLine("Bits per value: auto");
-                            Console.WriteLine("Primitive polynomial: auto");
+                            WelcomeMsg.Add("Bits per value: auto");
+                            WelcomeMsg.Add("Primitive polynomial: auto");
                         }
+                    }
+                    for (int i = 0; i < WelcomeMsg.Count; i++)
+                    {
+                        Console.WriteLine(WelcomeMsg[i]);
                     }
                     Console.WriteLine();
 
-                    bool Continue = true;
-                    if (ProgMode == 7)
-                    {
-                        Console.Write("Do you want to continue (Yes/No)? ");
-                        Continue = StrToBool(Console.ReadLine());
-                    }
+                    bool Continue = PromptContinue((ProgMode == 7) || (ProgMode == 27));
                     if (Continue)
                     {
-                        CRS.Proc(StrToInt(args[1]), DataF, DataM, CodeF, CodeM, CodeSegs, SegS);
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.LogSum("");
+                        MailSegment.LogSum("");
+                        for (int i = 0; i < WelcomeMsg.Count; i++)
+                        {
+                            MailSegment.Console_WriteLine_(WelcomeMsg[i]);
+                            MailSegment.LogSum(WelcomeMsg[i]);
+                        }
+                        CRS.Proc(StrToInt(args[1]), DataF, DataM, CodeF, CodeM, CodeSegs, SegPerUnit, SegS, (ProgMode == 27));
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.Console_WriteLine_("");
+                        MailSegment.LogSum("");
+                        MailSegment.LogSum("");
                     }
                     return;
                 }
@@ -1464,7 +1399,7 @@ namespace BackupToMail
             Console.WriteLine();
             Console.WriteLine("Create Reed-Solomon code or recover incomplete data file");
             Console.WriteLine("BackupToMail RSCODE <mode> <data file> <data map> <code file> <code map>");
-            Console.WriteLine("<code segments> [<segment size> <polynomial number>]");
+            Console.WriteLine("<segments per unit> <code units> [<segment size> <polynomial number>]");
             Console.WriteLine("Available modes:");
             Console.WriteLine(" 0 - Create code file");
             Console.WriteLine(" 1 - Recover files automatically - do not modify files");
@@ -1473,12 +1408,17 @@ namespace BackupToMail
             Console.WriteLine(" 4 - Recover files based on the maps - modify files according maps");
             Console.WriteLine(" 5 - Recover files automatically - modify files regardless maps");
             Console.WriteLine(" 6 - Recover files based on the maps - modify files regardless maps");
-            Console.WriteLine(" 7 - Resize files to specified size in bytes");
-            Console.WriteLine(" 8 - Resize files to specified size in segments");
-            Console.WriteLine(" 9 - Simulate incomplete download");
+            Console.WriteLine(" 7 - Analyze map files for recovery");
+            Console.WriteLine(" 8 - Resize files to specified size:");
+            Console.WriteLine("     <segments per unit> = 0 - Size is specified in bytes");
+            Console.WriteLine("     <segments per unit> = 1 - Size is specified in segments");
+            Console.WriteLine(" 9 - Simulate incomplete download:");
+            Console.WriteLine("     <segments per unit> = 0 - Do not resize files");
+            Console.WriteLine("     <segments per unit> = 1 - Simulate, that download process was finished");
+            Console.WriteLine("     <segments per unit> = 2 - Simulate, that download process was broken");
             Console.WriteLine();
-            Console.WriteLine("Create file based on dummy file generator:");
-            Console.WriteLine("BackupToMail FILE <dummy file definition> <file name>");
+            Console.WriteLine("Save dummy file or print stats:");
+            Console.WriteLine("BackupToMail FILE <source file> <destination file>");
             Console.WriteLine("[<segment size> <file stats mode> <period stats mode>]");
             Console.WriteLine("File stats modes and period stats modes:");
             Console.WriteLine(" 0 - No statistics (default)");
@@ -1493,156 +1433,6 @@ namespace BackupToMail
             Console.WriteLine(" 1 - Connection test and print full configuration");
             Console.WriteLine(" 2 - Connection test and print test results only");
             Console.WriteLine();
-        }
-
-
-        public static void DisplayStats(string Msg, ulong[] StatData, int Mode)
-        {
-            ulong ValMax = 0;
-            ulong ValMin = ulong.MaxValue;
-            ulong ValMin0 = ulong.MaxValue;
-            ulong ValAvg = 0;
-            ulong ValAvg0 = 0;
-            ulong ValDev = 0;
-            ulong ValDev0 = 0;
-            ulong ValSum = 0;
-            ulong ValCount0 = 0;
-            for (int i = 0; i < 256; i++)
-            {
-                if (ValMin > StatData[i])
-                {
-                    ValMin = StatData[i];
-                }
-                ValAvg = ValAvg + StatData[i];
-                if (StatData[i] > 0)
-                {
-                    ValAvg0 = ValAvg0 + StatData[i];
-                    ValCount0++;
-                    if (ValMin0 > StatData[i])
-                    {
-                        ValMin0 = StatData[i];
-                    }
-                }
-                if (ValMax < StatData[i])
-                {
-                    ValMax = StatData[i];
-                }
-                ValSum += StatData[i];
-            }
-            ValAvg = ValAvg / 256;
-            if (ValCount0 > 0)
-            {
-                ValAvg0 = ValAvg0 / ValCount0;
-            }
-            for (int i = 0; i < 256; i++)
-            {
-                ulong DevDiff = 0;
-                ulong DevDiff0 = 0;
-                if (StatData[i] >= ValAvg)
-                {
-                    DevDiff = StatData[i] - ValAvg;
-                }
-                else
-                {
-                    DevDiff = ValAvg - StatData[i];
-                }
-                ValDev += DevDiff;
-                if (StatData[i] > 0)
-                {
-                    if (StatData[i] >= ValAvg0)
-                    {
-                        DevDiff0 = StatData[i] - ValAvg0;
-                    }
-                    else
-                    {
-                        DevDiff0 = ValAvg0 - StatData[i];
-                    }
-                    ValDev0 += DevDiff0;
-                }
-            }
-
-            if (Mode == 1)
-            {
-                ulong GreatVal = ValMax / 10000UL;
-                uint[] Stat_ = new uint[256];
-                ulong ValD = 1;
-                if (GreatVal == 0)
-                {
-                    GreatVal = 1;
-                }
-                while (ValD < GreatVal)
-                {
-                    ValD = ValD * 10;
-                }
-                ulong ValDx = ValD / 10;
-                if (ValDx < 1)
-                {
-                    ValDx = 1;
-                }
-
-                Console.WriteLine(Msg + " n/" + ValD + ":");
-                for (int i = 0; i < 256; i++)
-                {
-                    Stat_[i] = (uint)(StatData[i] / ValD);
-                    if ((ValD > 1) && ((StatData[i] / ValDx) % 10) > 0)
-                    {
-                        if (Stat_[i] < 9999)
-                        {
-                            Stat_[i]++;
-                        }
-                    }
-
-                    Console.Write(Stat_[i].ToString().PadLeft(4, ' '));
-                    if (((i + 1) % 16) == 0)
-                    {
-                        Console.WriteLine();
-                    }
-                    else
-                    {
-                        Console.Write(" ");
-                    }
-                }
-            }
-            if ((Mode == 2) || (Mode == 3))
-            {
-                Console.WriteLine(Msg + ":");
-
-                int PadI = (int)(Math.Floor(Math.Log10(ValMax)) + 1);
-                for (int i = 0; i < 256; i++)
-                {
-                    if ((Mode == 2) || (StatData[i] > 0))
-                    {
-                        Console.Write(i.ToString().PadLeft(3, ' '));
-                        Console.Write(" - ");
-                        Console.Write(StatData[i].ToString().PadLeft(PadI, ' '));
-                        Console.WriteLine();
-                    }
-                }
-            }
-
-            Console.WriteLine("Minimum including 0: " + ValMin);
-            if (ValCount0 > 0)
-            {
-                Console.WriteLine("Minimum excluding 0: " + ValMin0);
-            }
-            Console.WriteLine("Maximum: " + ValMax);
-            Console.WriteLine("Average including 0: " + ValAvg);
-            if (ValCount0 > 0)
-            {
-                Console.WriteLine("Average excluding 0: " + ValAvg0);
-            }
-
-            ValDev = (ulong)(Math.Sqrt((double)ValDev / 256.0) * 1000.0);
-            Console.WriteLine("Standard deviation x1000 including 0: " + ValDev);
-            if (ValCount0 > 0)
-            {
-                ValDev0 = (ulong)(Math.Sqrt((double)ValDev0 / (double)ValCount0) * 1000.0);
-                Console.WriteLine("Standard deviation x1000 excluding 0: " + ValDev0);
-            }
-
-            Console.WriteLine("Sum: " + ValSum);
-            Console.WriteLine("Number of non-zeros: " + ValCount0);
-            Console.WriteLine("Number of zeros: " + (256UL - ValCount0));
         }
     }
 }

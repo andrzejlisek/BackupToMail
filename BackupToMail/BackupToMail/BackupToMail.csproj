@@ -96,6 +96,10 @@
     <Compile Include="RandomSequenceDigest.cs" />
     <Compile Include="RandomSequenceDotNet.cs" />
     <Compile Include="CodeReedSolomon.cs" />
+    <Compile Include="RandomSequenceFile.cs" />
+    <Compile Include="MailFileValueSet.cs" />
+    <Compile Include="MailFileValueGet.cs" />
+    <Compile Include="MailFileValue.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

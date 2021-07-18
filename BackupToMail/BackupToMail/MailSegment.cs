@@ -78,9 +78,23 @@ namespace BackupToMail
 
         public static int RandomCacheStep = 25;
 
+        public static int ReedSolomonFileThreads = 1;
+
+        public static int ReedSolomonComputeThreads = 1;
+
+        public static int ReedSolomonValuesPerThread = 10000;
+
+        public static string DownloadMessagePath = "";
+        public static bool DownloadMessagePathEnabled = false;
+
         public static string TimestampNow()
         {
             return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+        }
+
+        public static string TimestampFile(DateTime DT)
+        {
+            return DT.ToString("yyyyMMddHHmmss");
         }
 
         /// <summary>
@@ -150,8 +164,41 @@ namespace BackupToMail
             {
                 DownloadRetry = 0;
             }
+
+            CF.ParamGet("ReedSolomonFileThreads", ref ReedSolomonFileThreads);
+            if (ReedSolomonFileThreads < 1)
+            {
+                ReedSolomonFileThreads = 1;
+            }
+
+            CF.ParamGet("ReedSolomonComputeThreads", ref ReedSolomonComputeThreads);
+            if (ReedSolomonComputeThreads < 1)
+            {
+                ReedSolomonComputeThreads = 1;
+            }
+
+            CF.ParamGet("ReedSolomonValuesPerThread", ref ReedSolomonValuesPerThread);
+            if (ReedSolomonValuesPerThread < 1)
+            {
+                ReedSolomonValuesPerThread = 1;
+            }
+
+            CF.ParamGet("DownloadMessagePath", ref DownloadMessagePath);
+            DownloadMessagePath = DownloadMessagePath.Trim();
+            if (DownloadMessagePath != "")
+            {
+                if (!DownloadMessagePath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                {
+                    DownloadMessagePath = DownloadMessagePath + Path.DirectorySeparatorChar.ToString();
+                }
+                DownloadMessagePathEnabled = true;
+            }
+            else
+            {
+                DownloadMessagePathEnabled = false;
+            }
         }
-        
+
         /// <summary>
         /// Upload and download log file - transfer
         /// </summary>
@@ -946,6 +993,29 @@ namespace BackupToMail
             }
         }
 
+
+        /// <summary>
+        /// Write one text to log file
+        /// </summary>
+        public static void Log()
+        {
+            if (LogFileTransfer != "")
+            {
+                try
+                {
+                    FileStream FS = new FileStream(LogFileTransfer, FileMode.Append, FileAccess.Write);
+                    StreamWriter SW = new StreamWriter(FS);
+                    SW.WriteLine(TimestampNow());
+                    SW.Close();
+                    FS.Close();
+                }
+                catch
+                {
+
+                }
+            }
+        }
+
         /// <summary>
         /// Write one text to log file
         /// </summary>
@@ -1075,6 +1145,24 @@ namespace BackupToMail
         public static void Log(string T1, string T2, string T3, string T4, string T5, string T6, string T7, string T8, string T9)
         {
             Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5 + "\t" + T6 + "\t" + T7 + "\t" + T8 + "\t" + T9);
+        }
+
+        /// <summary>
+        /// Write nine texts to log file
+        /// </summary>
+        /// <param name="T1"></param>
+        /// <param name="T2"></param>
+        /// <param name="T3"></param>
+        /// <param name="T4"></param>
+        /// <param name="T5"></param>
+        /// <param name="T6"></param>
+        /// <param name="T7"></param>
+        /// <param name="T8"></param>
+        /// <param name="T9"></param>
+        /// <param name="T10"></param>
+        public static void Log(string T1, string T2, string T3, string T4, string T5, string T6, string T7, string T8, string T9, string T10)
+        {
+            Log(T1 + "\t" + T2 + "\t" + T3 + "\t" + T4 + "\t" + T5 + "\t" + T6 + "\t" + T7 + "\t" + T8 + "\t" + T9 + "\t" + T10);
         }
 
         static int LogTempS;

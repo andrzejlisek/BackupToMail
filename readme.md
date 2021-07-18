@@ -13,6 +13,15 @@ This application is a command\-line application, which allows to upload any larg
 
 If you run application without parameters or with unsupported action parameter, the application will print short description of command line syntax\. The action parameter is the first parameter and there is not case\-sensitive\.
 
+## Other purposes
+
+BackupToMail has featured, which is not strictly related with e\-mail accounts and messages, but can be usable in some cases, especially for testing and protecting data integrity:
+
+
+1. **Digest file** \- Create digest file based on any data file using MD5 hash function\. The digest file size is very low compared to data file, and depends on segment size and data file size\. You can check if data file is not changed by checking against early created digest file\.
+2. **Reed\-Solomon code** \- Create RSC file from any data file\. Using RSC file, you can recover original data file if there is slightly changed\. Only substitution changes can be recovered, for example, small blank areas due to storage medium damages\. You can define RSC file size and layout\. Restoring data abilities \(how many damages and how much damage size\) depends on RS file size and layout\. The restoring abilities are greater, when you use map file representing damaged areas\.
+3. **Dummy file** \- Create file based on one of internal generators\. Such file can be used to test purposes, also when you have to create identical large files on several computers\.
+
 # Configuration
 
 BackupToMail uses the **Config\.txt** file to get configuration\. This file is a textual file, which contains the **parameter=value** lines, which defines general settings and account configuration\. The lines, which are not contains the **=** sign are ignored\.
@@ -26,6 +35,7 @@ The general settings in **Config\.txt** file are following:
 * **ThreadsDownload** \- Number of simultaneous connections and threads used in downloading \(default **1**\)\.
 * **UploadGroupChange** \- Number of upload errors, after which the group of sending accounts will be changed to the nest group \(default **5**\)\.
 * **DownloadRetry** \- Number of retries to download the same message after download failure and reconnection \(default **5**\)\.
+* **DownloadMessagePath** \- Directory, where will be downloaded all unrecognized messages \(interpreted as other message\)\. If blank, such messages will not be downloaded\.
 * **DefaultSegmentType** \- Segment type and segment upload order when segment type is not specified in upload command \(default **0**\)\.
 * **DefaultSegmentSize** \- Segment size when segment size is not specified in upload command \(default **16777216** = 16MB\)\.
 * **DefaultImageSize** \- Default image size \(width\) when image size is not specified in upload command \(default **4096**\)\.
@@ -34,6 +44,9 @@ The general settings in **Config\.txt** file are following:
 * **LogFileMessages** \- If set, the transfer information \(all printed messages\) will be recorded into the file\.
 * **LogFileSummary** \- If set, the transfer summary \(parameters and result\) will be recorded into the file\.
 * **NameSeparator** \- The character, which will used as sepatator of multiple file names and item names\. If not set, the transfer of multiple files once is not possible\. If the value is longer than one character, only the first character will be used\.
+* **ReedSolomonFileThreads** \- Number of threads used to read or write values while using Reed\-Solomon code function \(default **1**\)\.
+* **ReedSolomonComputeThreads** \- Number of threads used to compute Reed\-Solomon code while using Reed\-Solomon code function \(default **1**\)\.
+* **ReedSolomonValuesPerThread** \- Number of values used per one thread while using Reed\-Solomon code function \(default **10000**\)\. The whole pool size is **ReedSolomonValuesPerThread multiplied** by **ReedSolomonComputeThreads**\.
 
 When parameter is not set or has incorrect value, the default value will be used\.
 
@@ -72,7 +85,7 @@ You can check configuration and test accounts using **CONFIG** parameter\. The c
 * **CONFIG word** \- Print configuration and connection test,
 * **Account list** \- List of accounts to print configuration or connection test\.
 * **Test mode** \- Connection text one of following:
-  * **0** \- Print configuration without test\.
+  * **0** \- Print configuration without connection test\.
   * **1** \- Connection test and print full configuration\.
   * **2** \- Connection test and print test results only\.
 * **Number of tries** \- The maximum number of attepts to connect to the same server before raising error message\. If not provided, there will be performed single try\.
@@ -639,7 +652,31 @@ If internet connection lost or IMAP/POP3 server is temporally unavailable while 
 
 If file is downloaded without deletion options, the download process ends immediately after download last missing segment\. You can download the digest file \(mode **5**\) instead of data file \(mode **0**\), thi data segments for the digest file will be downloaded exactly by the same way as download data file\.
 
-## Digest file
+## Download other messages
+
+BackupToMail can download messages, which are not recognized as messages generated by BackupToMail\. Such messages are marked as **other messages**\. Such messages are useless in BackupToMail and not intened by automatically processd\.
+
+BackupToMail is not intended to be a ordinary e\-mail client replacement, but if you set the **DownloadMessagePath** path in the **Config\.txt** file, every **other message** in every download or check process will be downloaded\. Most of such messages contains advertisments, but can contain important informations such as about:
+
+
+* Undelivered messages to specified accounts\.
+* Reaching capacity limit or transfer limit\.
+* Security warnings and errors\.
+* Change the account features and parameters\.
+
+Downloading other messages will not denoted in log files and messages in console\. This function is intended to be a transparent fo download or check process\. Every message will be stored into separated directory\. The name of this directory consists of account number from account lint in **Config\.txt**, message number from message index, message timestamp and subject\. In subject, characters other than commonly characters usable in file names, are replaced with underscore\.
+
+In message directory, there are the following files:
+
+
+* **Headers\.csv** \- All message headers\.
+* **Address\.csv** \- Message addresses including **From**, **To** and **CC**\.
+* **Body\.csv** \- All body objects including message text and attachments, this file contains original file identifiers and names\.
+* Files prefixed with **Body** \- Every body object are stored into separate file, the number meets the item in **Body\.csv**\. If original file name is known, the file name will be suffixed with this, otherwise, the file wil be suffixed by **txt** or **bin** extension\.
+
+In the most cases, the message text will be stored in **Body1\.txt** or **Body2\.txt**\. The graphics attachments are usually not important in messages other than advertisments\.
+
+# Digest file
 
 Fo any data file, you can generate the digest file, which consists of digest for each data file segment\. The first 32 characters of digest file designes the file size and segment size, each occupies 16 bytes\. The further bytes are the segment digests, each consists of 32 characters\.
 
@@ -696,7 +733,7 @@ There will be displayed the following information \(in mode **0**, **1** and **3
 
 The digest file can be used as data file substitute to check the completeness and correctness of uploaded data without the original data file, especially, when the data file is very large\. You can download the digest file \(mode **5**\) instead of data file \(mode **0**\), the digests will be generated based on the data file segments\.
 
-## Checking uploaded file
+# Checking uploaded file
 
 BackupToMail offers checking completeness and correctness of uploaded file by six ways:
 
@@ -718,7 +755,7 @@ The checking principle is the same as download principle and uses the same funct
 
 After checking, the transfer speed is displayes only for downloaded data bytes, while you perform the check mode, which requires download data\. The header data is not encountered to downloaded bytes\.
 
-### Check existence without body control
+## Check existence without body control
 
 There is the simpliest check type, it nos uses the data file name \(this parameter is ignored, although it must be provided\)\. BackupToMail researches headers of all messages, which matches to requested item name, like download action\. After find some file segment, application knowns the number of file segments\. This option can detect the following things: 
 
@@ -731,7 +768,7 @@ There is the simpliest check type, it nos uses the data file name \(this paramet
 
 Thich checks does not download segments and is also useful to deletion messages\.
 
-### Check existence with body control
+## Check existence with body control
 
 The check type is similar to **Check existence without body control**, but additionally downloads segment\. This can detect the same things as above and additionally the following things: 
 
@@ -741,7 +778,7 @@ The check type is similar to **Check existence without body control**, but addit
 
 The check mode is very similar to download, the only difference is no saving the downloaded data\.
 
-### Check the header digest
+## Check the header digest
 
 This mode reads data from provided local data file or digest name and generates the digest based on the file for every correct message, without browsing body or attachment\. The generated digest is compared with digest from header and if the digest differs, this messages is treated as bad\. This mode does not download segments from messages, it can detect: 
 
@@ -751,7 +788,7 @@ This mode reads data from provided local data file or digest name and generates 
 
 Check the body contents like **Check the header digest**, this mode also reads the local data file or digest file, but downloads segment from body \(attachment or text\) and compares the downloaded segment with the same segment from local data file or generates the digest of the downloaded segment and compares with the digest from the digest file\. If differs, this message is bad\. 
 
-## Deleting messages
+# Deleting messages
 
 During download or checking uploaded file, there is possible message deletion\. Because downloading or checking file requires browsing all messages \(or some messages within index interval\), there is possible to delete other messages, than messages related to requested file\. If you download with deletion options, the browsing will not be broken after downloading all segments\.
 
@@ -782,9 +819,9 @@ The code file is generated using Reed\-Solomon code and can be used to recover m
 
 The code file is additional file and must be treated as other regular file\. You can upload it on the same account as another file or store this file locally only\.
 
-The original Reed\-Solomon code uses the serie of n\-bit values, which determines the maximum number of segments \(total data file and code file\)\. One segment usually consists of from 1MB to 100MB of data, depending on message size limit\.
+The original Reed\-Solomon code uses the serie of n\-bit values, which determines the maximum number of units \(total data file and code file\)\. One segment usually consists of from 1MB to 100MB of data, depending on message size limit\. One unit usually consists of one segment, but it can consist of more segments\.
 
-Each segment consists of certain bits \(segment size in bytes multiplied by 8\) and can be splitted into values\. For example, if segment consists of 50MB \(52428800 bytes\), you can interpret this as follwing, for example:
+Each segment consists of certain bits \(segment size in bytes multiplied by 8\) and can be splitted into values\. For example, if segment consists of 50MB \(52428800 bytes\), you can interpret this as follwing, for example \(assuming, that one unit consists of one segment\):
 
 
 * 52428800 8\-bit values
@@ -798,7 +835,7 @@ The Reed\-Solomon code is based on the Galois finite fields, the code generation
 
 Below, there is presented features for each supported value size in bits\.
 
-| Value bits | Power of 2 | Maximum number of segments | Default polynomial | Values:Bytes |
+| Value bits | Power of 2 | Maximum number of units | Default polynomial | Values:Bytes |
 | --- | --- | --- | --- | --- |
 | 2 | 4 | 3 | 7 | 8:2 = 4:1 |
 | 3 | 8 | 7 | 11 | 8:3 |
@@ -830,7 +867,117 @@ Below, there is presented features for each supported value size in bits\.
 | 29 | 536870912 | 536870911 | 536870917 | 8:29 |
 | 30 | 1073741824 | 1073741823 | 1073741907 | 8:30 = 4:15 |
 
-## Performing RS\-code operations
+## Code layout description
+
+Usually, one unit consists of one segment, so one unit is the same as one segment\. Generating and checking the code of very large files consisting of at least a few thousands segments can take very long time\. You can make generating code faster at the expense of some recovery limitations by setting more than one segment per unit\.
+
+For example, let is assume, that file consists of 5000 segments and you want to create code consisting of 20 segments\. In this case, you can recovery any up to 20 lost segments if you know, which segments are lost, or up to 10 segments, if you do not know, which segments are lost\. Creating code for 5000 segments can take very long time\.
+
+For example, you can set 5 segments per unit and 4 units of code\. In this case, both data file and code file will be considered as 5 separated files, which are interleaved\. The code file generation will mean generating 4\-segment code for 1000 segments five times\. The code file will also consist of 20 segments \(5 units, each consisting of 4 segments\)\. Generating 4\-segment code for 1000 segments five times is faster than generating 20\-segments code for 5000 segments\. Using fever code bits also makes generation faster\.
+
+But, in this case, there are recovery abilities:
+
+
+* Up to 2 segments, if you do not know, which segments are lost \- wythout any limitations\.
+* Up to 4 segments, if you know, which segments are lost \- wythout any limitations\.
+* Up to 10 segments, if you do not know, which segments are lost \- but up to 2 segments per unit\.
+* Up to 20 segments, if you know, which segments are lost \- but up to 4 segments per unit\.
+* If you lost more than 2 segments in one unit without knowing, which segments, recovery of the unit is not possible, whole data can be recovered partially\.
+* If you lost more than 4 segments in one unit with knowing, which segments, recovery of the unit is not possible, whole data can be recovered partially\.
+
+In practice, if you randomly lost several segments, there is higher probability, that you lost segments in different units, than in the same unit\.
+
+## Code layout examples
+
+For example, assume, that data consists of 10 segments\. The code segments can be generated as following, in the table below\. Segments are numbered from 0, one row represents one unit\. For readibility, the numbers above 9 are replaced by letters \(like in hexadecimal number notation\)\. If the number of segments per unit is not a divisor of number of data segments, the data file will be virtually padded with additional dummy segments, which are always treated as surviving while recovering corrupted data or code\.
+
+The **code segments** per unit and **Code units** are set be user as parameters\. Number of code segments are calculated by bultiplication these values\.
+
+| Code segs per unit | Code units | Code segments | Data layout | Code layout |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | 1 | `|0|1|2|3|4|5|6|7|8|9|` | `|0|` |
+| 1 | 2 | 2 | `|0|1|2|3|4|5|6|7|8|9|` | `|0|1|` |
+| 1 | 3 | 3 | `|0|1|2|3|4|5|6|7|8|9|` | `|0|1|2|` |
+| 1 | 4 | 4 | `|0|1|2|3|4|5|6|7|8|9|` | `|0|1|2|3|` |
+| 2 | 1 | 2 | `|0|2|4|6|8|`<br> `|1|3|5|7|9|` | `|0|`<br> `|1|` |
+| 2 | 2 | 4 | `|0|2|4|6|8|`<br> `|1|3|5|7|9|` | `|0|2|`<br> `|1|3|` |
+| 2 | 3 | 6 | `|0|2|4|6|8|`<br> `|1|3|5|7|9|` | `|0|2|4|`<br> `|1|3|5|` |
+| 2 | 4 | 8 | `|0|2|4|6|8|`<br> `|1|3|5|7|9|` | `|0|2|4|6|`<br> `|1|3|5|7|` |
+| 3 | 1 | 3 | `|0|3|6|9|`<br> `|1|4|7| |`<br> `|2|5|8| |` | `|0|`<br> `|1|`<br> `|2|` |
+| 3 | 2 | 6 | `|0|3|6|9|`<br> `|1|4|7| |`<br> `|2|5|8| |` | `|0|3|`<br> `|1|4|`<br> `|2|5|` |
+| 3 | 3 | 9 | `|0|3|6|9|`<br> `|1|4|7| |`<br> `|2|5|8| |` | `|0|3|6|`<br> `|1|4|7|`<br> `|2|5|8|` |
+| 3 | 4 | 12 | `|0|3|6|9|`<br> `|1|4|7| |`<br> `|2|5|8| |` | `|0|3|6|9|`<br> `|1|4|7|A|`<br> `|2|5|8|B|` |
+| `4` | `1` | 4 | `|0|4|8|`<br> `|1|5|9|`<br> `|2|6| |`<br> `|3|7| |` | `|0|`<br> `|1|`<br> `|2|`<br> `|3|` |
+| `4` | `2` | 8 | `|0|4|8|`<br> `|1|5|9|`<br> `|2|6| |`<br> `|3|7| |` | `|0|4|`<br> `|1|5|`<br> `|2|6|`<br> `|3|7|` |
+| `4` | `3` | 12 | `|0|4|8|`<br> `|1|5|9|`<br> `|2|6| |`<br> `|3|7| |` | `|0|4|8|`<br> `|1|5|9|`<br> `|2|6|A|`<br> `|3|7|B|` |
+| `4` | `4` | 16 | `|0|4|8|`<br> `|1|5|9|`<br> `|2|6| |`<br> `|3|7| |` | `|0|4|8|C|`<br> `|1|5|9|D|`<br> `|2|6|A|E|`<br> `|3|7|B|F|` |
+
+## Recovery possibility
+
+To determine, if recovery of certain lost segments in certain code layout, you have to consider possibly number of lost segments in every row of data or code file\. The number of rows is equals to number of segment per unit\. Assume, that:
+
+
+* **CU** \- Code units\.
+* **LMin** \- The least lost segments in one unit\.
+* **LMax** \- The most lost segments in one unit\.
+* **LMin <= LMax**\.
+
+There are conditions used in the table below, where **L** means **LMin** or **LMax**:
+
+
+1. \(L = 0\)
+2. \(L > 0\) and \(L <= \(CU/2\)\)
+3. \(L > \(CU/2\)\) and \(L <= CU\)
+4. \(L > CU\)
+
+| Condition with **L**=**LMin** | Condition with **L**=**LMax** | Possibility without maps | Possibility with maps |
+| --- | --- | --- | --- |
+| 1 | 1 | No | No |
+| 1 | 2 | Yes | Yes |
+| 2 | 2 | Yes | Yes |
+| 1 | 3 | No | Yes |
+| 2 | 3 | Partial | Yes |
+| 3 | 3 | No | Yes |
+| 1 | 4 | No | No |
+| 2 | 4 | Partial | Partial |
+| 3 | 4 | No | Partial |
+| 4 | 4 | No | No |
+
+## Recovery possibility examples
+
+There are all possible recovery abilities for some cases\.
+
+In some cases, there are two or more possible recovery results, written by slash, depending on lost segment placement in data or code files\.
+
+In the table below, there are some layouts with 2 code segments:
+
+| Feature | Case 1 | Case 2 | Case 3 | Case 4 |
+| --- | --- | --- | --- | --- |
+| Using maps for recovery | No | Yes | No | Yes |
+| Segments per unit | 1 | 1 | 2 | 2 |
+| Code units | 2 | 2 | 1 | 1 |
+| Code segments | 2 | 2 | 2 | 2 |
+| Code generation time | Longest | Longest | Shortest | Shortest |
+| Recovery, when lost 1 segment | Yes | Yes | No | Yes |
+| Recovery, when lost 2 segments | No | Yes | No | Yes/No |
+| Recovery, when lost 3 or more segments | No | No | No | Partial/No |
+
+In the table below, there are some layouts with 4 code segments:
+
+| Feature | Case 1 | Case 2 | Case 3 | Case 4 | Case 5 | Case 6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Using maps for recovery | No | Yes | No | Yes | No | Yes |
+| Segments per unit | 1 | 1 | 2 | 2 | 4 | 4 |
+| Code units | 4 | 4 | 2 | 2 | 1 | 1 |
+| Code segments | 4 | 4 | 4 | 4 | 4 | 4 |
+| Code generation time | Longest | Longest | Middle | Middle | Shortest | Shortest |
+| Recovery, when lost 1 segment | Yes | Yes | Yes | Yes | No | Yes |
+| Recovery, when lost 2 segments | Yes | Yes | Yes/No | Yes | No | Yes/No |
+| Recovery, when lost 3 segments | No | Yes | Partial/No | Yes/No | No | Yes/No |
+| Recovery, when lost 4 segments | No | Yes | Partial/No | Yes/Partial/No | No | Yes/No |
+| Recovery, when lost 5 or more segments | No | No | Partial/No | Partial/No | No | Partial/No |
+
+# Performing RS\-code operations
 
 You can perform Reed\-Solomon code related operations by the following command:
 
@@ -844,19 +991,27 @@ You can perform Reed\-Solomon code related operations by the following command:
    * **4** \- Recover files based on the maps \- modify files according maps\.
    * **5** \- Recover files automatically \- modify files regardless maps\.
    * **6** \- Recover files based on the maps \- modify files regardless maps\.
-   * **7** \- Resize files to specified size in bytes\.
-   * **8** \- Resize files to specified size in segments\.
+   * **7** \- Analyze map files for recovery\.
+   * **8** \- Resize files to specified size\.
    * **9** \- Simulate incomplete download\.
 3. **Data file** \- Data file name\.
 4. **Data map** \- Map file for data file\.
 5. **Code file** \- Code file name\.
 6. **Code map** \- Map file for code file\.
-7. **Code segments** \- Number of code segments, used in mode **0** only, not affects in other modes\.
-8. **Segment size** \- Segment size, if **0** or omitted, there will be used the default segment size\.
-9. **Polynomial number** \- Value size or primitive polynomial number:
-   * **0 or omitted** \- Use as small value size as possible with default primitive polynomial\.
-   * **Power of 2 \(4, 8, 16, 32\.\.\.\)** \- Force specified value size with default primitive polynomial\.
-   * **Every other number** \- Force specified primitive polynomial, not every polynomial is actually primitive polynomial\.
+7. **Segments per unit** \- Number of segments per one unit \(default **1**\) in modes from **0** to **6**\. In other modes there is additional mode:
+   * In mode **7**:
+     * **0** \- Size is specified in bytes\.
+     * **1** \- Size is specified in segments\.
+   * In mode **8**:
+     * **0** \- Do not resize files\.
+     * **1** \- Resize files like download process was finished, but not all segments was exists\.
+     * **2** \- Resize files like download process was broken \(for example, due to power blackout\)\.
+8. **Code units** \- Number of code units in mode **0**\. In modes from **1** to **7**, the number will be detected, in modes **8** and **9** is not required\.
+9. **Segment size** \- Segment size, if **0** or omitted, there will be used the default segment size\.
+10. **Polynomial number** \- Value size or primitive polynomial number:
+    * **0 or omitted** \- Use as small value size as possible with default primitive polynomial\.
+    * **Power of 2 \(4, 8, 16, 32\.\.\.\)** \- Force specified value size with default primitive polynomial\.
+    * **Every other number** \- Force specified primitive polynomial, not every polynomial is actually primitive polynomial\.
 
 Every Galois field has certain set of primitive polynomials, which matches the following formula, the `a` is array of values:
 
@@ -933,7 +1088,7 @@ Apart from the recovery modes, there are three possible save modes:
 * **Modify files according maps** \- The application will perform recovery process, but there will be saved modifications inside this segments, which are marked as **0** in map file\.
 * **Modify files regardless maps** \- The application can freely modify data file and code file during recovery\.
 
-The recovery and save modes are compines as mode from **1** to **6** as following:
+The recovery and save modes are combines as mode from **1** to **7** as following:
 
 
 * **1** \- Recover files automatically \- do not modify files\.
@@ -942,8 +1097,9 @@ The recovery and save modes are compines as mode from **1** to **6** as followin
 * **4** \- Recover files based on the maps \- modify files according maps\.
 * **5** \- Recover files automatically \- modify files regardless maps\.
 * **6** \- Recover files based on the maps \- modify files regardless maps\.
+* **7** \- Analyze map files for recovery\.
 
-In every mode, the map files will not be modified\. It is not possible, which segments was actually incorrect, especially in automatically modes\. The result will give some informations which can be interpreted as series of values:
+In every mode in exception of **7**, the map files will not be modified\. It is not possible, which segments was actually incorrect, especially in automatically modes\. The result will give some informations which can be interpreted as series of values:
 
 
 * **Total values per segment** \- Number of values per segment depending on segment size and value size\.
@@ -953,7 +1109,7 @@ In every mode, the map files will not be modified\. It is not possible, which se
 * **Recovered values in both data and code** \- Some serie values in both files was incorrect and fully recovered\.
 * **Unrecoverable incorrect values** \- Too many serie values are incorrect and there is not possible to correct\. There also not possible to detect, which values in serie are correct or incorrect already\. If uncorrectable incorrect values exists, it means that there is not possible to fully recovery data file, in some cases, the file may be recovered partially\.
 
-Depending on save mode, none, some or all modified segments will be saved\. The result is splitted to data and code file, thich contains following information:
+Depending on save mode, modified segments may be saved or not\. The result is splitted to data and code file, thich contains following information:
 
 
 * **Total** \- Total number of file segments\.
@@ -963,28 +1119,30 @@ Depending on save mode, none, some or all modified segments will be saved\. The 
 
 In most cases, there will be printed general recovery result depending on above number results\.
 
-For example, to check, if file **Archive\.zip** data is correct against to **Archive\.rsc** code file, you can perform mode **1** without map files:
+The mode **7** does not executing any calculation\. It analyzes only maps for both files and print results, if data or code are recoverable in this case using mode **4** or **6**\. Analyzing without calculation for automatically recovering is not possible\. The analysis does not modify any files\.
+
+For example, to check, if file **Archive\.zip** data is correct against to **Archive\.rsc** code file, you can perform mode **1** without map files, using **1** segment per unit:
 
 ```
-BackupToMail.exe RSCODE 1 Archive.zip / Archive.rsc /
+BackupToMail.exe RSCODE 1 Archive.zip / Archive.rsc / 1
 ```
 
 If you want to recovery missing or corrupted segments without maps, you can use the **5** mode, if the code was created using 16\-bit values with default polynomial, you have to provide **65536** as polynomial \(2 powered to 16\):
 
 ```
-BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 0 0 65536
+BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 1 0 0 65536
 ```
 
 If the code was created using 1MB segment size \(other than default\) and was used the **65581** polynomial, which was other than default, you have to provide these values:
 
 ```
-BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 0 1048576 65581
+BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 1 0 1048576 65581
 ```
 
 If you have the **Archive\.map** map file to the **Archive\.zip** data file and you have the **Archive\.rsm** map file to the **Archive\.rsc** code file, you can recovery more missing segments based on the map file, and only segments marked as missing may be modified:
 
 ```
-BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm 1
 ```
 
 ## Code file and digest file
@@ -1018,7 +1176,7 @@ The digest file will not be generated, but the **Archive\.rsm** map file will be
 Now, you have the **Archive\.map** map file for **Achive\.zip** data file and **Archive\.rsm** map file for **Archive\.rsc** code file\. Then, you can perform recovery operation using map files:
 
 ```
-BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm 1
 ```
 
 Now, if **Archive\.zip** file recovery was possible, you will get the recovered data file\. Check the printed recovery result\.
@@ -1028,7 +1186,7 @@ For this scenario, you can run the batch or script file, which contains the foll
 ```
 BackupToMail.exe DIGEST 3 Archive.zip Archive.map Archive.dig
 BackupToMail.exe DIGEST 0 Archive.rsc Archive.rsm /
-BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm 1
 ```
 
 If you have the digest file for both data and code files \(**Archive\.dig** for **Archive\.zip** and **Archive\.rsd** for **Archive\.rsc**\), you can use both digest files to recovery original file sizes and maps:
@@ -1036,7 +1194,7 @@ If you have the digest file for both data and code files \(**Archive\.dig** for 
 ```
 BackupToMail.exe DIGEST 3 Archive.zip Archive.map Archive.dig
 BackupToMail.exe DIGEST 3 Archive.rsc Archive.rsm Archive.rsd
-BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm 1
 ```
 
 ## Resizing data and code files
@@ -1050,32 +1208,32 @@ Assume, that the correct size of **Archive\.zip** is 512354254 and correct size 
 You can resize both file at a time using the following command:
 
 ```
-BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000
+BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000 0
 ```
 
 If you want to resize single file at a time, provide blank file name and size for secod file, because **RSCODE** requires minimum 6 parameters:
 
 ```
-BackupToMail.exe RSCODE 7 Archive.zip 512354254 "" 0
+BackupToMail.exe RSCODE 7 Archive.zip 512354254 "" 0 0
 ```
 
 So, if you download both data and code files, you can correct the file sizes and repair them automatically, when number of missing segments are less than number of code segments:
 
 ```
-BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000
-BackupToMail.exe RSCODE 3 Archive.zip / Archive.rsc /
+BackupToMail.exe RSCODE 7 Archive.zip 512354254 Archive.rsc 5000000 0
+BackupToMail.exe RSCODE 3 Archive.zip / Archive.rsc / 1
 ```
 
 You can resize files providing number of segments instead of size in bytes using mode **8**\. Many file types allows to be slightly larger than original file size, while the end of file is padded with zeros\. If the defailt segment size is 1000000, you can perform the following command:
 
 ```
-BackupToMail.exe RSCODE 8 Archive.zip 513 Archive.rsc 5
+BackupToMail.exe RSCODE 8 Archive.zip 513 Archive.rsc 5 0
 ```
 
 The code file will have original size, but the data file will be slightly oversized\. You also provide segment size instead of using default segment size:
 
 ```
-BackupToMail.exe RSCODE 8 Archive.zip 513 Archive.rsc 5 0 1000000
+BackupToMail.exe RSCODE 8 Archive.zip 513 Archive.rsc 5 0 0 1000000
 ```
 
 ## Simulating incomplete download
@@ -1084,7 +1242,7 @@ You can clear some segments in data file and code file to simulate file incomple
 
 You have to manually edit the map file to select, which segments will be missing, the **0** means the missing segment, the **1** or **2** simulates surviving segments\.
 
-The number of segments parameter has another meaning in mode 8\. There are possible values:
+The number of segments per unit parameter has another meaning in mode **9**\. There are possible values:
 
 
 * **0** \- Do not resize files\.
@@ -1105,10 +1263,10 @@ If you want to process single file at a time, provide blank file name and size f
 BackupToMail.exe RSCODE 9 Archive.zip Archive.map "" "" 1
 ```
 
-Like every other mode, this mode uses default segment size\. You can use other segment size providing it to command\. For example, if you want to use the segment size 1000000 and simulate broken download process, you can do this by following command for **Archive\.zip** file and **Archive\.map** map:
+Like every other mode, this mode uses default segment size\. You can use other segment size providing it to command\. For example, if you want to use the segment size **1000000** and simulate broken download process, you can do this by following command for **Archive\.zip** file and **Archive\.map** map:
 
 ```
-BackupToMail.exe RSCODE 9 Archive.zip Archive.map "" "" 2 1000000
+BackupToMail.exe RSCODE 9 Archive.zip Archive.map "" "" 2 0 1000000
 ```
 
 # Reuploading missing segments
@@ -1201,20 +1359,20 @@ If you have the digest file for data, you have to automatically correct the data
 BackupToMail.exe DIGEST 2 Archive.zip / Archive.dig
 ```
 
-If you do not have the digest file, you can manually correct the data file size \(assume, that the data file size is 1000000000\):
+If you do not have the digest file, you can manually correct the data file size \(assume, that the data file size is **1000000000**\):
 
 ```
-BackupToMail.exe RSCODE 7 Archive.zip 1000000000 "" 0
+BackupToMail.exe RSCODE 7 Archive.zip 1000000000 "" 0 0
 ```
 
 If the code file is alco incomplete and the file size may be incorrect, you have to correct code file size by the similar way\.
 
 If you are sure, that size of both files are correct, you can try to recovery missing segments\.
 
-If number of missing segments \(total of data and code file\) are less than half of number of code file segments, you can try to recovery in automatic mode without using the maps:
+If number of missing segments \(total of data and code file\) are less than half of number of code file segments, you can try to recovery in automatic mode without using the maps \(in thix example, RS code layout is **1** segment per unit\):
 
 ```
-BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc /
+BackupToMail.exe RSCODE 5 Archive.zip / Archive.rsc / 1
 ```
 
 If the missing segments are more, but less or equal than number of code file segments, you have to ensure, that you have the maps for both files\. If you do not have the map file for code file, because you have the file already, you have to generate the map consisting of all segments marked as **1**, use **DIGEST** function to do this, the digest file will not necessary, so it will not be created\.
@@ -1226,7 +1384,7 @@ BackupToMail.exe DIGEST 0 Archive.rsc Archive.rsm /
 Then you have to use the map files to recovery original data file using following command:
 
 ```
-BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm
+BackupToMail.exe RSCODE 4 Archive.zip Archive.map Archive.rsc Archive.rsm 1
 ```
 
 If both files was successfully recovered, you can reupload missing segments of both files, as described below\.
@@ -1387,7 +1545,7 @@ The generator uses the MD5 digest function to generate next 16 bytes\. The argum
 
 The prefix and suffix must be blank or consist of even number of hexadecimal digits, the letter case is not important\. If you want to use blank prefix or suffix, do not put any characters as prefix or suffix\. The single digest generation iteration is used to generate 16 bytes of file\.
 
-### Digest generation examples
+## Digest generation examples
 
 The examples uses hexadecimal strings to representate byte strings\.
 
@@ -1449,25 +1607,25 @@ Example for 1MB dummy file using standard algorithm: `*1048576,3,1234`
 
 Example for 1MB dummy file using cryptographic algorithm: `*1048576,3`
 
-## Create disk file
+# Create disk file and stats
 
-You can create real disk file, which has content the same as dummy file\. To do this, use the FILE command with following parameters:
+You can create real disk file, which has content the same as dummy file or display file statistics\. To do this, use the FILE command with following parameters:
 
 
-* **FILE word** \- create file based on dummy file definition\.
-* **Dummy file definition** \- the dummy file definition described above\.
-* **File name** \- Real disk file name\.
-* **Segment size** \- segment size used to display file creation progress\. If ommited or set as **0**, there will be used default segment size\.
+* **FILE word** \- Create file based on dummy file definition\.
+* **Source file** \- The dummy file definition or real file\.
+* **Destination file** \- Real disk file name \(you can leave blank, if you want to get stats only\)\.
+* **Segment size** \- Segment size used to display file creation progress\. If ommited or set as **0**, there will be used default segment size\.
 * **File stats mode** \- One of the file statistics modes:
-   * **0 \- No statistics** \- do not create statistics\.
-   * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
-   * **2 \- Value list with zeros** \- print count of each value including zeros\.
-   * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+  * **0 \- No statistics** \- do not create statistics\.
+  * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+  * **2 \- Value list with zeros** \- print count of each value including zeros\.
+  * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
 * **Period stats mode** \- One of the period statistics modes:
-   * **0 \- No statistics** \- do not create statistics, the period will not be searched\.
-   * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
-   * **2 \- Value list with zeros** \- print count of each value including zeros\.
-   * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
+  * **0 \- No statistics** \- do not create statistics, the period will not be searched\.
+  * **1 \- Simplified distribution table** \- print statistics as 16x16 table to look over the distribution at a first glance\. If value count exceedes 9999 \(four\-digit number\), all values will be divided by any power of 10 to achieve all values less than 10000\.
+  * **2 \- Value list with zeros** \- print count of each value including zeros\.
+  * **3 \- Value list without zeros** \- print count of each value excluding zeros\.
 
 File creation example using segment size and without statistics and period searching:
 
@@ -1500,7 +1658,7 @@ The following operations displays the operation parameters and waits for the con
 
 If you execute one of the operations mentioned above, there will be displayed the question **Do you want to continue \(Yes/No\)**\. If you write one of the following answers \(letter case is not important\), there will be interpreted as **Yes**: **1**, **T**, **TRUE**, **Y**, **YES**\. Other answer will be interpreted as **No**\.
 
-You can ommit the confirmation if you add the BATCH word to operation word ass following:
+You will ommit the confirmation, if you add the **BATCH** word to operation word as following:
 
 
 * **UPLOADBATCH** or **BATCHUPLOAD**
@@ -1519,11 +1677,36 @@ The remaining operations \(**MAP** and **CONFIG**\) does not require confirmatio
 * The operations does not generate or modify any file or anything in any accont\.
 * In most cases, these operations performing time is very short\.
 
+# Confirm operations
+
+The following operations can wait for confirmation \(executed without **BATCH** word\) and not \(executed with **BATCH** word\)\. Operation prompts, when there is last moment before saving any messages in log files and open any file\. After opening file, there can be displayed additional data based on opened files\. You can force additional operation confirming after displaying such additional informations for the following:
+
+
+* **DIGEST** \- Generating digest file or cheching data file against the digest file\.
+* **RSCODE** \- Generating Reed\-Solomon code or recovering data file\.
+
+You will force the additional confirmation, if you add the **CONFIRM** word to operation word as following:
+
+
+* **DIGESTCONFIRM** or **CONFIRMDIGEST**
+* **RSCODECONFIRM** or **CONFIRMRSCODE**
+
+You can not combine the **BATCH** and **CONFIRM** in one operation\.
+
 # Log files
 
 The upload and download operations can be logged to two log files\. To enable this feature, set the **LogFileTransfer** or **LogFileMessages** parameters to valid file name in **Config\.txt** configuration file\. If you set both parameters, the value must be different\.
 
-In the log files, BackupToMail will log every upload or download action\. There will be saved the following informations:
+In the log files, BackupToMail will log following operations:
+
+
+* **UPLOAD**
+* **DOWNLOAD**
+* **DIGEST**
+* **RSCODE**
+* **FILE**
+
+There will be saved the following informations:
 
 
 1. Before action \- type of action and action informations such as file names and mail accounts\.

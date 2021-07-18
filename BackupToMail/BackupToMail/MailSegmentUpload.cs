@@ -324,7 +324,7 @@ namespace BackupToMail
             }
             if (OpenAll)
             {
-                Log("");
+                Log();
                 LogReset();
                 Log("Time stamp", "Uploaded segments since previous entry", "Totally uploaded segments", "All segments", "Uploaded bytes since previous entry", "Totally uploaded bytes", "All bytes by segment count", "All bytes by file size");
                 TSW = new Stopwatch_();
@@ -445,7 +445,7 @@ namespace BackupToMail
                                     }
                                     else
                                     {
-                                        Console_WriteLine(ConsoleInfo + " - to ommit");
+                                        Console_WriteLine(ConsoleInfo + " - not to upload");
                                     }
 
                                     bool PerformUploadCondition = false;
@@ -580,6 +580,7 @@ namespace BackupToMail
                     {
                         MF[i_].MapCalcStats();
                         Console_WriteLine("Item " + (i_ + 1).ToString() + ":");
+                        Console_WriteLine(" Item name: " + FileName_[i_]);
                         Console_WriteLine(" Total segments: " + MF[i_].GetSegmentCount().ToString());
                         Console_WriteLine(" Segments uploaded previously: " + MF[i_].MapCount(2).ToString());
                         Console_WriteLine(" Segments uploaded now: " + MF[i_].MapCount(1).ToString());
@@ -600,8 +601,6 @@ namespace BackupToMail
                     ConsoleLineToLogSum = false;
                     ConsoleLineToLog = false;
                 }
-                LogSum("");
-                LogSum("");
                 for (int i_ = 0; i_ < FileCount; i_++)
                 {
                     MF[i_].Close();
@@ -621,8 +620,6 @@ namespace BackupToMail
                 }
                 ConsoleLineToLogSum = false;
                 ConsoleLineToLog = false;
-                LogSum("");
-                LogSum("");
                 return;
             }
         }

@@ -48,6 +48,359 @@ namespace BackupToMail
             Undownloadable = 32
         }
 
+        public static string CSV_sep = ",";
+
+        public static string CSV(string S)
+        {
+            if (S == null)
+            {
+                return "";
+            }
+            return "\"" + S.Replace("\"", "\"\"") + "\"";
+        }
+
+        public static string TextToFileName(string X)
+        {
+            if (X == null)
+            {
+                return "";
+            }
+            string X_ = "";
+            string AllowedChars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM_ .-()";
+            for (int i = 0; i < X.Length; i++)
+            {
+                if (AllowedChars.Contains(X[i].ToString()))
+                {
+                    X_ = X_ + X[i];
+                }
+                else
+                {
+                    X_ = X_ + "_";
+                }
+            }
+            return X_;
+        }
+
+        /// <summary>
+        /// Receive and save e-mail message for test purposes
+        /// </summary>
+        /// <returns>The receive x.</returns>
+        /// <param name="Account">Account.</param>
+        /// <param name="ImapClient_">Imap client.</param>
+        /// <param name="Pop3Client_">POP3 client.</param>
+        /// <param name="Idx">Index.</param>
+        /// <param name="MsgCount">Message count.</param>
+        /// <param name="ErrorType">Error type.</param>
+        /// <param name="cancel">Cancel.</param>
+        public static int MailReceiveX(int Account, int AccountCount, IMailFolder ImapClient_, Pop3Client Pop3Client_, int Idx, int MsgCount, ref int ErrorType, CancellationTokenSource cancel)
+        {
+            int T = 1;
+            int NumPad = 0;
+            while (T < MsgCount)
+            {
+                T = T * 10;
+                NumPad++;
+            }
+            int AccT = 1;
+            int AccNumPad = 0;
+            while (AccT < AccountCount)
+            {
+                AccT = AccT * 10;
+                AccNumPad++;
+            }
+
+            ErrorType = 0;
+            if ((ImapClient_ == null) && (Pop3Client_ == null))
+            {
+                ErrorType = 3;
+                return ErrorType;
+            }
+
+            MimeMessage Msg = null;
+            CleanUp();
+            bool Work = true;
+            while (Work)
+            {
+                try
+                {
+                    if (ImapClient_ != null)
+                    {
+                        Msg = ImapClient_.GetMessage(Idx, cancel.Token);
+                        Work = false;
+                    }
+                    if (Pop3Client_ != null)
+                    {
+                        Msg = Pop3Client_.GetMessage(Idx, cancel.Token);
+                        Work = false;
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (e is OutOfMemoryException)
+                    {
+                        CleanUp();
+                    }
+                    else
+                    {
+                        ErrorType = 1;
+                        return ErrorType;
+                    }
+                }
+            }
+            CleanUp();
+
+            string Idx_ = Account.ToString().PadLeft(AccNumPad, '0') + "_" + Idx.ToString().PadLeft(NumPad, '0');
+            string DirName = DownloadMessagePath + Path.DirectorySeparatorChar + Idx_ + ". " + MailSegment.TimestampFile(Msg.Date.LocalDateTime) + " - " + TextToFileName(Msg.Subject);
+            Directory.CreateDirectory(DirName);
+            string FilePrefix = DirName + Path.DirectorySeparatorChar;
+
+            FileStream FS;
+            StreamWriter FS_;
+            try
+            {
+                FS = new FileStream(FilePrefix + "Headers.csv", FileMode.Create, FileAccess.Write);
+                FS_ = new StreamWriter(FS);
+                foreach (Header MsgH in Msg.Headers)
+                {
+                    FS_.Write(CSV(MsgH.Field));
+                    FS_.Write(CSV_sep);
+                    FS_.Write(CSV(MsgH.Value));
+                    FS_.WriteLine();
+                }
+                FS_.Close();
+                FS.Close();
+            }
+            catch
+            {
+
+            }
+
+            try
+            {
+                FS = new FileStream(FilePrefix + "Address.csv", FileMode.Create, FileAccess.Write);
+                FS_ = new StreamWriter(FS);
+                if (Msg.From != null)
+                {
+                    foreach (InternetAddress item in Msg.From)
+                    {
+                        FS_.Write(CSV("From"));
+                        FS_.Write(CSV_sep);
+                        FS_.Write(CSV(item.ToString()));
+                        FS_.WriteLine();
+                    }
+                }
+                if (Msg.To != null)
+                {
+                    foreach (InternetAddress item in Msg.To)
+                    {
+                        FS_.Write(CSV("To"));
+                        FS_.Write(CSV_sep);
+                        FS_.Write(CSV(item.ToString()));
+                        FS_.WriteLine();
+                    }
+                }
+                if (Msg.Cc != null)
+                {
+                    foreach (InternetAddress item in Msg.Cc)
+                    {
+                        FS_.Write(CSV("CC"));
+                        FS_.Write(CSV_sep);
+                        FS_.Write(CSV(item.ToString()));
+                        FS_.WriteLine();
+                    }
+                }
+                if (Msg.Bcc != null)
+                {
+                    foreach (InternetAddress item in Msg.Bcc)
+                    {
+                        FS_.Write(CSV("BCC"));
+                        FS_.Write(CSV_sep);
+                        FS_.Write(CSV(item.ToString()));
+                        FS_.WriteLine();
+                    }
+                }
+                FS_.Close();
+                FS.Close();
+            }
+            catch
+            {
+
+            }
+
+            FS = null;
+            FS_ = null;
+            if (Msg.BodyParts != null)
+            {
+                bool BodyFileCreated = false;
+                int I = 1;
+                foreach (MimeEntity MsgBody_ in Msg.BodyParts)
+                {
+                    if ((MsgBody_ is MimePart) || (MsgBody_ is TextPart))
+                    {
+                        if (!BodyFileCreated)
+                        {
+                            try
+                            {
+                                FS = new FileStream(FilePrefix + "Body.csv", FileMode.Create, FileAccess.Write);
+                                FS_ = new StreamWriter(FS);
+                                BodyFileCreated = true;
+                            }
+                            catch
+                            {
+                                FS = null;
+                                FS_ = null;
+                            }
+                        }
+                    }
+                    if (MsgBody_ is MimePart)
+                    {
+                        MimePart MsgBody = (MimePart)MsgBody_;
+                        if (FS_ != null)
+                        {
+                            FS_.Write(I.ToString());
+                            FS_.Write(CSV_sep);
+                            FS_.Write(CSV(MsgBody.ContentId));
+                            FS_.Write(CSV_sep);
+                            FS_.Write(CSV(MsgBody.FileName));
+                            FS_.WriteLine();
+                        }
+
+                        using (StreamReader SR__ = new StreamReader(MsgBody.Content.Stream))
+                        {
+                            try
+                            {
+                                string Raw_ = SR__.ReadToEnd();
+                                try
+                                {
+                                    byte[] Raw = Convert.FromBase64String(Raw_);
+                                    try
+                                    {
+                                        string FileSuffix = ".bin";
+                                        if ((MsgBody.FileName != null) && (MsgBody.FileName != ""))
+                                        {
+                                            FileSuffix = "_" + TextToFileName(MsgBody.FileName);
+                                        }
+                                        FileStream FS0 = new FileStream(FilePrefix + "Body" + I.ToString() + FileSuffix, FileMode.Create, FileAccess.Write);
+                                        FS0.Write(Raw, 0, Raw.Length);
+                                        FS0.Close();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                                catch
+                                {
+                                    try
+                                    {
+                                        string FileSuffix = ".txt";
+                                        if ((MsgBody.FileName != null) && (MsgBody.FileName != ""))
+                                        {
+                                            FileSuffix = "_" + TextToFileName(MsgBody.FileName);
+                                        }
+                                        FileStream FS0 = new FileStream(FilePrefix + "Body" + I.ToString() + FileSuffix, FileMode.Create, FileAccess.Write);
+                                        StreamWriter FS0_ = new StreamWriter(FS0);
+                                        FS0_.Write(Raw_);
+                                        FS0_.Close();
+                                        FS0.Close();
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+                            }
+                            catch
+                            {
+
+                            }
+                        }
+                    }
+                    I++;
+                }
+                if (BodyFileCreated)
+                {
+                    try
+                    {
+                        FS_.Close();
+                        FS.Close();
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+
+            FS = null;
+            FS_ = null;
+            if (Msg.Attachments != null)
+            {
+                bool AttaFileCreated = false;
+                int I = 1;
+                foreach (MimeEntity MsgAtta_ in Msg.Attachments)
+                {
+                    if (MsgAtta_ is MimePart)
+                    {
+                        if (!AttaFileCreated)
+                        {
+                            try
+                            {
+                                FS = new FileStream(FilePrefix + "Atta.csv", FileMode.Create, FileAccess.Write);
+                                FS_ = new StreamWriter(FS);
+                                AttaFileCreated = true;
+                            }
+                            catch
+                            {
+                                FS = null;
+                                FS_ = null;
+                            }
+                        }
+
+                        MimePart MsgAtta = (MimePart)MsgAtta_;
+                        if (FS_ != null)
+                        {
+                            FS_.Write(I.ToString());
+                            FS_.Write(CSV_sep);
+                            FS_.Write(CSV(MsgAtta.ContentId));
+                            FS_.Write(CSV_sep);
+                            FS_.Write(CSV(MsgAtta.FileName));
+                            FS_.WriteLine();
+                        }
+
+                        using (StreamReader SR__ = new StreamReader(MsgAtta.Content.Stream))
+                        {
+                            try
+                            {
+                                byte[] Raw = Convert.FromBase64String(SR__.ReadToEnd());
+                                FileStream FS0 = new FileStream(FilePrefix + "Atta" + I.ToString() + ".bin", FileMode.Create, FileAccess.Write);
+                                FS0.Write(Raw, 0, Raw.Length);
+                                FS0.Close();
+                            }
+                            catch
+                            {
+
+                            }
+                        }
+                    }
+                    I++;
+                }
+                if (AttaFileCreated)
+                {
+                    try
+                    {
+                        FS_.Close();
+                        FS.Close();
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+            return ErrorType;
+        }
+
         public static byte[] MailReceive(string ConsoleInfo, string ConsoleDownCheck, int Account, IMailFolder ImapClient_, Pop3Client Pop3Client_, int Idx, out string MsgInfo_, ref int ErrorType, CancellationTokenSource cancel)
         {
             ErrorType = 0;
@@ -654,6 +1007,13 @@ namespace BackupToMail
                                 else
                                 {
                                     Console_WriteLine("other message");
+
+                                    if (DownloadMessagePathEnabled)
+                                    {
+                                        int ErrorType = 0;
+                                        MailReceiveX(Account, MailAccountList.Count, ImapClient_Inbox_[0], Pop3Client_[0], MsgIdx, MsgCount, ref ErrorType, cancel);
+                                    }
+
                                     if ((FileDeleteMode_ & FileDeleteMode.OtherMsg) == FileDeleteMode.OtherMsg)
                                     {
                                         DeleteBasedOnHeader = true;
@@ -1112,6 +1472,10 @@ namespace BackupToMail
             {
                 if (MF[MRP_.FileI].MapGet(SegmentNum) == 0)
                 {
+                    if (MF[MRP_.FileI].DataNeedExpand(SegmentNum))
+                    {
+                        Console_WriteLine_Thr(ConsoleInfo + " - expanding file to save");
+                    }
                     MF[MRP_.FileI].DataSet(SegmentNum, RawData, SegmentSize);
                     MF[MRP_.FileI].MapSet(SegmentNum, 1);
                     Console_WriteLine_Thr(ConsoleInfo + " - download finished");
@@ -1176,7 +1540,7 @@ namespace BackupToMail
             }
             if (OpenAll)
             {
-                Log("");
+                Log();
                 LogReset();
                 Log("Time stamp", "Downloaded segments since previous entry", "Totally downloaded segments", "All segments", "Downloaded bytes since previous entry", "Totally downloaded bytes", "All bytes by segment count", "All bytes by file size");
                 TSW = new Stopwatch_();
@@ -1206,28 +1570,32 @@ namespace BackupToMail
                         IdxMax_[i] = MailAccountList[Account[i]].DownloadMaxExists + 1;
                     }
                 }
+                if (FileDownloadMode_ == FileDownloadMode.Download || FileDownloadMode_ == FileDownloadMode.DownloadDigest)
+                {
+                    Console_WriteLine("");
+                    for (int i_ = 0; i_ < FileCount; i_++)
+                    {
+                        if (MF[i_].ResizeNeed())
+                        {
+                            Console_WriteLine("Item " + (i_ + 1).ToString() + " - resize started");
+                            MF[i_].ResizeData();
+                            MF[i_].ResizeMap();
+                            Console_WriteLine("Item " + (i_ + 1).ToString() + " - resize finished");
+                        }
+                        else
+                        {
+                            Console_WriteLine("Item " + (i_ + 1).ToString() + " - not found");
+                        }
+                    }
+                }
                 ConsoleLineToLog = true;
                 ConsoleLineToLogSum = true;
                 Console_WriteLine("");
                 for (int i_ = 0; i_ < FileCount; i_++)
                 {
-                    if (MF[i_].ResizeNeed())
-                    {
-                        Console_WriteLine("Item " + (i_ + 1).ToString() + " - resize started");
-                        MF[i_].ResizeData();
-                        MF[i_].ResizeMap();
-                        Console_WriteLine("Item " + (i_ + 1).ToString() + " - resize finished");
-                    }
-                    else
-                    {
-                        Console_WriteLine("Item " + (i_ + 1).ToString() + " - not found");
-                    }
-                }
-                Console_WriteLine("");
-                for (int i_ = 0; i_ < FileCount; i_++)
-                {
                     MF[i_].MapCalcStats();
                     Console_WriteLine("Item " + (i_ + 1).ToString() + ":");
+                    Console_WriteLine(" Item name: " + FileName[i_]);
                     Console_WriteLine(" Total segments: " + MF[i_].GetSegmentCount().ToString());
                     if ((FileDownloadMode_ == FileDownloadMode.Download) || (FileDownloadMode_ == FileDownloadMode.DownloadDigest))
                     {
@@ -1264,8 +1632,6 @@ namespace BackupToMail
                 Console_WriteLine("Total time: " + TimeHMSM(TSW.Elapsed()));
                 ConsoleLineToLogSum = false;
                 ConsoleLineToLog = false;
-                LogSum("");
-                LogSum("");
                 for (int i_ = 0; i_ < FileCount; i_++)
                 {
                     MF[i_].Close();
@@ -1285,8 +1651,6 @@ namespace BackupToMail
                 }
                 ConsoleLineToLogSum = false;
                 ConsoleLineToLog = false;
-                LogSum("");
-                LogSum("");
                 return;
             }
         }

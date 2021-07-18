@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace BackupToMail
 {
@@ -7,6 +8,266 @@ namespace BackupToMail
     {
         public CodeReedSolomon()
         {
+        }
+
+        int ReedSolomonFileThreads = 1;
+        int ReedSolomonComputeThreads = 1;
+        int ReedSolomonValuesPerThread = 10000;
+
+
+        int WorkPoolSizeI_Units;
+        int WorkPoolSegPerUnit;
+        int WorkPoolSizeI;
+        long WorkPoolSizeL;
+        int[][] WorkPoolValueSerie;
+        int[][] WorkPoolValueSerie_;
+        STH1123.ReedSolomon.ReedSolomonEncoder[] WorkPoolRSE;
+        STH1123.ReedSolomon.ReedSolomonDecoder[] WorkPoolRSD;
+        Thread[] WorkPoolThread;
+        int WorkPoolDataSegments;
+        int WorkPoolCodeSegments;
+        int WorkPoolDataUnits;
+        int WorkPoolCodeUnits;
+        int[][] WorkPoolErasureArray;
+
+        Thread[] WorkFileThread;
+        int[] WorkFileData1;
+        int[] WorkFileData2;
+        int[] WorkFileCode1;
+        int[] WorkFileCode2;
+        MailFile WorkPool_MF;
+        MailFile WorkPool_RS;
+
+        long WorkPoolDecodeValsTrueNotChanged = 0;
+        long WorkPoolDecodeValsTrueChangedData = 0;
+        long WorkPoolDecodeValsTrueChangedCode = 0;
+        long WorkPoolDecodeValsTrueChangedDataCode = 0;
+        long WorkPoolDecodeValsFalse = 0;
+        byte[][] WorkPoolSegmentMap;
+        byte[][] WorkPoolSegmentMod;
+        byte[][] WorkPoolSegmentMod_;
+        bool WorkPoolAllowOutsideMap;
+        bool WorkPoolAllowModify;
+
+        void ThreadDataReadCodeClear(int ThrNum)
+        {
+            for (int i_ = 0; i_ < WorkPoolSegPerUnit; i_++)
+            {
+                for (int ii = WorkFileData1[ThrNum]; ii < WorkFileData2[ThrNum]; ii++)
+                {
+                    WorkPool_MF.DataValueGet(ii * WorkPoolSegPerUnit + i_, ref WorkPoolValueSerie, WorkPoolSizeI * i_, ii);
+                }
+            }
+            for (int ii = WorkFileCode1[ThrNum]; ii < WorkFileCode2[ThrNum]; ii++)
+            {
+                for (int i_ = 0; i_ < WorkPoolSizeI_Units; i_++)
+                {
+                    WorkPoolValueSerie[i_][ii + WorkPoolDataUnits] = 0;
+                }
+            }
+        }
+
+        void ThreadDataReadCodeRead(int ThrNum)
+        {
+            for (int i_ = 0; i_ < WorkPoolSegPerUnit; i_++)
+            {
+                for (int ii = WorkFileData1[ThrNum]; ii < WorkFileData2[ThrNum]; ii++)
+                {
+                    WorkPool_MF.DataValueGet(ii * WorkPoolSegPerUnit + i_, ref WorkPoolValueSerie, WorkPoolSizeI * i_, ii);
+                }
+                for (int ii = WorkFileCode1[ThrNum]; ii < WorkFileCode2[ThrNum]; ii++)
+                {
+                    WorkPool_RS.DataValueGet(ii * WorkPoolSegPerUnit + i_, ref WorkPoolValueSerie, WorkPoolSizeI * i_, ii + WorkPoolDataUnits);
+                }
+            }
+            for (int ii = WorkFileData1[ThrNum]; ii < WorkFileData2[ThrNum]; ii++)
+            {
+                for (int i_ = 0; i_ < WorkPoolSizeI_Units; i_++)
+                {
+                    WorkPoolValueSerie_[i_][ii] = WorkPoolValueSerie[i_][ii];
+                }
+            }
+            for (int ii = WorkFileCode1[ThrNum]; ii < WorkFileCode2[ThrNum]; ii++)
+            {
+                for (int i_ = 0; i_ < WorkPoolSizeI_Units; i_++)
+                {
+                    WorkPoolValueSerie_[i_][ii + WorkPoolDataUnits] = WorkPoolValueSerie[i_][ii + WorkPoolDataUnits];
+                }
+            }
+        }
+
+        void ThreadCodeWrite(int ThrNum)
+        {
+            for (int i_ = 0; i_ < WorkPoolSegPerUnit; i_++)
+            {
+                for (int ii = WorkFileCode1[ThrNum]; ii < WorkFileCode2[ThrNum]; ii++)
+                {
+                    WorkPool_RS.DataValueSet(ii * WorkPoolSegPerUnit + i_, ref WorkPoolValueSerie, WorkPoolSizeI * i_, ii + WorkPoolDataUnits);
+                }
+            }
+        }
+
+        void ThreadDataWriteCodeWrite(int ThrNum)
+        {
+            for (int i_ = 0; i_ < WorkPoolSegPerUnit; i_++)
+            {
+                for (int ii = WorkFileData1[ThrNum]; ii < WorkFileData2[ThrNum]; ii++)
+                {
+                    if (WorkPoolSegmentMod_[i_][ii] == 1)
+                    {
+                        WorkPool_MF.DataValueSet(ii * WorkPoolSegPerUnit + i_, ref WorkPoolValueSerie, WorkPoolSizeI * i_, ii);
+                    }
+                }
+                for (int ii = WorkFileCode1[ThrNum]; ii < WorkFileCode2[ThrNum]; ii++)
+                {
+                    if (WorkPoolSegmentMod_[i_][ii + WorkPoolDataUnits] == 1)
+                    {
+                        WorkPool_RS.DataValueSet(ii * WorkPoolSegPerUnit + i_, ref WorkPoolValueSerie, WorkPoolSizeI * i_, ii + WorkPoolDataUnits);
+                    }
+                }
+            }
+        }
+
+
+        void PrepareFileThreads(MailFile WorkPool_MF_, MailFile WorkPool_RS_)
+        {
+            WorkPool_MF = WorkPool_MF_;
+            WorkPool_RS = WorkPool_RS_;
+            WorkFileThread = new Thread[ReedSolomonFileThreads];
+            int DataFileSize_Thr = WorkPoolDataUnits / ReedSolomonFileThreads;
+            if ((WorkPoolDataUnits % ReedSolomonFileThreads) > 0)
+            {
+                DataFileSize_Thr++;
+            }
+            int CodeFileSize_Thr = WorkPoolCodeUnits / ReedSolomonFileThreads;
+            if ((WorkPoolCodeUnits % ReedSolomonFileThreads) > 0)
+            {
+                CodeFileSize_Thr++;
+            }
+            WorkFileData1 = new int[ReedSolomonFileThreads];
+            WorkFileData2 = new int[ReedSolomonFileThreads];
+            WorkFileCode1 = new int[ReedSolomonFileThreads];
+            WorkFileCode2 = new int[ReedSolomonFileThreads];
+            for (int i = 0; i < ReedSolomonFileThreads; i++)
+            {
+                WorkFileData1[i] = i * DataFileSize_Thr;
+                WorkFileData2[i] = (i + 1) * DataFileSize_Thr;
+                if (WorkFileData2[i] > WorkPoolDataUnits)
+                {
+                    WorkFileData2[i] = WorkPoolDataUnits;
+                }
+                WorkFileCode1[i] = i * CodeFileSize_Thr;
+                WorkFileCode2[i] = (i + 1) * CodeFileSize_Thr;
+                if (WorkFileCode2[i] > WorkPoolCodeUnits)
+                {
+                    WorkFileCode2[i] = WorkPoolCodeUnits;
+                }
+            }
+        }
+
+        void WorkPoolEncode(int ThrNum)
+        {
+            int PoolOffset = ThrNum * ReedSolomonValuesPerThread;
+            for (int i_ = 0; i_ < WorkPoolSegPerUnit; i_++)
+            {
+                for (int i = 0; i < ReedSolomonValuesPerThread; i++)
+                {
+                    WorkPoolRSE[PoolOffset + i].Encode(WorkPoolValueSerie[PoolOffset + i], WorkPoolCodeUnits);
+                }
+                PoolOffset += WorkPoolSizeI;
+            }
+        }
+
+        object WorkPoolMutex = new object();
+
+        void WorkPoolDecode(int ThrNum)
+        {
+            int PoolOffset = ThrNum * ReedSolomonValuesPerThread;
+            for (int i_ = 0; i_ < WorkPoolSegPerUnit; i_++)
+            {
+                for (int i = 0; i < ReedSolomonValuesPerThread; i++)
+                {
+                    if (WorkPoolRSD[PoolOffset + i].Decode(WorkPoolValueSerie[PoolOffset + i], WorkPoolCodeUnits, WorkPoolErasureArray[i_]))
+                    {
+                        bool ChangedData = false;
+                        bool ChangedCode = false;
+                        for (int ii = 0; ii < WorkPoolDataUnits; ii++)
+                        {
+                            if (WorkPoolValueSerie[PoolOffset + i][ii] != WorkPoolValueSerie_[PoolOffset + i][ii])
+                            {
+                                ChangedData = true;
+                                Monitor.Enter(WorkPoolMutex);
+                                if (WorkPoolSegmentMod[i_][ii] != 3)
+                                {
+                                    if (WorkPoolAllowModify && (WorkPoolAllowOutsideMap || (WorkPoolSegmentMap[i_][ii] == 0)))
+                                    {
+                                        WorkPoolSegmentMod[i_][ii] = 1;
+                                        WorkPoolSegmentMod_[i_][ii] = 1;
+                                    }
+                                    else
+                                    {
+                                        WorkPoolSegmentMod[i_][ii] = 2;
+                                    }
+                                }
+                                Monitor.Exit(WorkPoolMutex);
+                            }
+                        }
+                        for (int ii = 0; ii < WorkPoolCodeUnits; ii++)
+                        {
+                            if (WorkPoolValueSerie[PoolOffset + i][ii + WorkPoolDataUnits] != WorkPoolValueSerie_[PoolOffset + i][ii + WorkPoolDataUnits])
+                            {
+                                ChangedCode = true;
+                                Monitor.Enter(WorkPoolMutex);
+                                if (WorkPoolSegmentMod[i_][ii + WorkPoolDataUnits] != 3)
+                                {
+                                    if (WorkPoolAllowModify && (WorkPoolAllowOutsideMap || (WorkPoolSegmentMap[i_][ii + WorkPoolDataUnits] == 0)))
+                                    {
+                                        WorkPoolSegmentMod[i_][ii + WorkPoolDataUnits] = 1;
+                                        WorkPoolSegmentMod_[i_][ii + WorkPoolDataUnits] = 1;
+                                    }
+                                    else
+                                    {
+                                        WorkPoolSegmentMod[i_][ii + WorkPoolDataUnits] = 2;
+                                    }
+                                }
+                                Monitor.Exit(WorkPoolMutex);
+                            }
+                        }
+
+                        Monitor.Enter(WorkPoolMutex);
+                        if (ChangedData)
+                        {
+                            if (ChangedCode)
+                            {
+                                WorkPoolDecodeValsTrueChangedDataCode++;
+                            }
+                            else
+                            {
+                                WorkPoolDecodeValsTrueChangedData++;
+                            }
+                        }
+                        else
+                        {
+                            if (ChangedCode)
+                            {
+                                WorkPoolDecodeValsTrueChangedCode++;
+                            }
+                            else
+                            {
+                                WorkPoolDecodeValsTrueNotChanged++;
+                            }
+                        }
+                        Monitor.Exit(WorkPoolMutex);
+                    }
+                    else
+                    {
+                        Monitor.Enter(WorkPoolMutex);
+                        WorkPoolDecodeValsFalse++;
+                        Monitor.Exit(WorkPoolMutex);
+                    }
+                }
+                PoolOffset += WorkPoolSizeI;
+            }
         }
 
         public int PolynomialNumber = 0;
@@ -127,7 +388,7 @@ namespace BackupToMail
             {
                 if ((FileName != "") && (MapName != ""))
                 {
-                    Console.WriteLine("Processing " + Prefix2 + " file");
+                    MailSegment.Console_WriteLine("Processing " + Prefix2 + " file");
                     MailFile MF = new MailFile();
                     if (MF.Open(false, false, FileName, MapName))
                     {
@@ -155,42 +416,42 @@ namespace BackupToMail
                                 {
                                     SWWorkTime += 1000L;
                                 }
-                                Console.WriteLine(Prefix1 + " file progress: " + (i + 1) + "/" + XSegments + " (" + (i * 100 / XSegments) + "%)");
+                                MailSegment.Console_WriteLine(Prefix1 + " file progress: " + (i + 1) + "/" + XSegments + " (" + (i * 100 / XSegments) + "%)");
                             }
                         }
-                        Console.WriteLine(Prefix1 + " file progress: " + XSegments + "/" + XSegments + " (100%)");
-                        Console.WriteLine();
+                        MailSegment.Console_WriteLine(Prefix1 + " file progress: " + XSegments + "/" + XSegments + " (100%)");
+                        MailSegment.Console_WriteLine("");
 
                         if (LastGoodSegment < (XSegments - 1))
                         {
                             if (SizeMode == 1)
                             {
-                                Console.WriteLine(Prefix1 + " file resizing started");
+                                MailSegment.Console_WriteLine(Prefix1 + " file resizing started");
                                 long NewSize = ((long)XSegments - 1L) * (long)SegmentSize + 1L;
                                 MF.ResizeData(NewSize);
-                                Console.WriteLine(Prefix1 + " file resizing finished");
-                                Console.WriteLine();
+                                MailSegment.Console_WriteLine(Prefix1 + " file resizing finished");
+                                MailSegment.Console_WriteLine("");
                             }
                             if (SizeMode == 2)
                             {
-                                Console.WriteLine(Prefix1 + " file resizing started");
+                                MailSegment.Console_WriteLine(Prefix1 + " file resizing started");
                                 long NewSize = ((long)LastGoodSegment + 1L) * (long)SegmentSize;
                                 MF.ResizeData(NewSize);
-                                Console.WriteLine(Prefix1 + " file resizing finished");
-                                Console.WriteLine();
+                                MailSegment.Console_WriteLine(Prefix1 + " file resizing finished");
+                                MailSegment.Console_WriteLine("");
                             }
                         }
 
-                        Console.WriteLine(Prefix1 + " file processed");
+                        MailSegment.Console_WriteLine(Prefix1 + " file processed");
                     }
                     else
                     {
-                        Console.WriteLine(Prefix1 + " file open error: " + MF.OpenError);
+                        MailSegment.Console_WriteLine(Prefix1 + " file open error: " + MF.OpenError);
                     }
                     return;
                 }
             }
-            Console.WriteLine(Prefix1 + " file not specified");
+            MailSegment.Console_WriteLine(Prefix1 + " file not specified");
         }
 
         private void ResizeFile(string Prefix1, string Prefix2, string FileName, string MapName)
@@ -205,73 +466,105 @@ namespace BackupToMail
                         MailFile MF = new MailFile();
                         if (MF.Open(false, false, FileName, null))
                         {
-                            Console.WriteLine(Prefix1 + " file resizing started");
+                            MailSegment.Console_WriteLine(Prefix1 + " file resizing started");
                             MF.ResizeData(FileSize);
-                            Console.WriteLine(Prefix1 + " file resizing finished");
+                            MailSegment.Console_WriteLine(Prefix1 + " file resizing finished");
                         }
                         else
                         {
-                            Console.WriteLine(Prefix1 + " file open error: " + MF.OpenError);
+                            MailSegment.Console_WriteLine(Prefix1 + " file open error: " + MF.OpenError);
                         }
                         return;
                     }
                     else
                     {
-                        Console.WriteLine(Prefix1 + " - invalid desired file size");
+                        MailSegment.Console_WriteLine(Prefix1 + " - invalid desired file size");
                         return;
                     }
                 }
             }
-            Console.WriteLine(Prefix1 + " file not specified");
+            MailSegment.Console_WriteLine(Prefix1 + " file not specified");
         }
 
-        public void Proc(int Mode, string DataFile, string DataMapFile, string CodeFile, string CodeMapFile, int CodeSegments, int SegmentSize)
+        public void Proc(int Mode, string DataFile, string DataMapFile, string CodeFile, string CodeMapFile, int CodeUnits, int SegPerUnit, int SegmentSize, bool PromptConfirm)
         {
+            ReedSolomonFileThreads = MailSegment.ReedSolomonFileThreads;
+            ReedSolomonComputeThreads = MailSegment.ReedSolomonComputeThreads;
+            ReedSolomonValuesPerThread = MailSegment.ReedSolomonValuesPerThread;
+
+
             // Resize data and map files
-            if ((Mode == 7) || (Mode == 8))
+            if (Mode == 8)
             {
                 ResizeFile("Data", "data", DataFile, DataMapFile);
-                Console.WriteLine();
+                MailSegment.Console_WriteLine("");
                 ResizeFile("Code", "code", CodeFile, CodeMapFile);
-                Console.WriteLine();
+                MailSegment.Console_WriteLine("");
             }
 
-            // Clear some segments according the map file
+            // Clear some segments according the map file - simulate incomplete download
             if (Mode == 9)
             {
-                SimulateClear("Data", "data", DataFile, DataMapFile, SegmentSize, CodeSegments);
-                Console.WriteLine();
-                SimulateClear("Code", "code", CodeFile, CodeMapFile, SegmentSize, CodeSegments);
-                Console.WriteLine();
+                SimulateClear("Data", "data", DataFile, DataMapFile, SegmentSize, SegPerUnit);
+                MailSegment.Console_WriteLine("");
+                SimulateClear("Code", "code", CodeFile, CodeMapFile, SegmentSize, SegPerUnit);
+                MailSegment.Console_WriteLine("");
             }
 
-            // Creating RS code and recovering data file
-            if ((Mode >= 0) && (Mode <= 6))
+            // Creating RS code or recovering data file
+            if ((Mode >= 0) && (Mode <= 7))
             {
                 MailFile MF = new MailFile();
                 MailFile RS = new MailFile();
 
-                if (MF.Open(false, Mode == 0, DataFile, DataMapFile))
+                if (MF.Open(false, (Mode == 0) || (Mode == 7), DataFile, DataMapFile))
                 {
-                    if (RS.Open(false, false, CodeFile, CodeMapFile))
+                    if (RS.Open(false, (Mode == 7), CodeFile, CodeMapFile))
                     {
+                        Stopwatch_ TSW = new Stopwatch_();
+                        MailSegment.LogReset();
+
+
                         // Set desired segment size for both data and code files
                         MF.SetSegmentSize(SegmentSize);
                         RS.SetSegmentSize(SegmentSize);
+
                         int DataSegments = MF.CalcSegmentCount();
-                        if (Mode != 0)
+                        int DataSegmentsReal = DataSegments;
+                        int CodeSegments = CodeUnits * SegPerUnit;
+                        if ((Mode >= 1) && (Mode <= 7))
                         {
                             CodeSegments = RS.CalcSegmentCount();
+                            if ((CodeSegments % SegPerUnit) != 0)
+                            {
+                                CodeSegments = CodeSegments / SegPerUnit;
+                                CodeSegments = CodeSegments * SegPerUnit;
+                                CodeSegments++;
+                            }
+                        }
+                        int DataUnits = DataSegments / SegPerUnit;
+                        if ((DataSegments % SegPerUnit) > 0)
+                        {
+                            DataUnits++;
+                            DataSegments = SegPerUnit * DataUnits;
                         }
 
                         long SegmentSizeL = SegmentSize;
                         SegmentSizeL = SegmentSizeL * 8;
 
                         int TotalSegments = DataSegments + CodeSegments;
+                        int TotalUnits = DataUnits + CodeUnits;
 
-                        Console.WriteLine("Data segments: " + DataSegments);
-                        Console.WriteLine("Code segments: " + CodeSegments);
-                        Console.WriteLine("All segments: " + TotalSegments);
+                        MailSegment.ConsoleLineToLog = true;
+                        MailSegment.ConsoleLineToLogSum = true;
+                        MailSegment.Console_WriteLine("");
+                        MailSegment.Console_WriteLine("Real data segments: " + DataSegmentsReal);
+                        MailSegment.Console_WriteLine("Data segments: " + DataSegments);
+                        MailSegment.Console_WriteLine("Code segments: " + CodeSegments);
+                        MailSegment.Console_WriteLine("All segments: " + TotalSegments);
+                        MailSegment.Console_WriteLine("Data units: " + DataUnits);
+                        MailSegment.Console_WriteLine("Code units: " + CodeUnits);
+                        MailSegment.Console_WriteLine("All units: " + TotalUnits);
 
                         bool MessageSizeFound = true;
 
@@ -280,7 +573,7 @@ namespace BackupToMail
                             int PolyBase = 4;
                             NumberOfBits = 2;
 
-                            while (MessageSizeFound && ((TotalSegments > (PolyBase - 1)) || ((SegmentSizeL % (long)NumberOfBits) != 0)))
+                            while (MessageSizeFound && ((TotalUnits > (PolyBase - 1)) || ((SegmentSizeL % (long)NumberOfBits) != 0)))
                             {
                                 if (PolyBase >= 1073741824)
                                 {
@@ -296,443 +589,761 @@ namespace BackupToMail
 
                         if (MessageSizeFound)
                         {
-                            Console.WriteLine("Bits per value: " + NumberOfBits);
-                            Console.WriteLine("Primitive polynomial: " + PolynomialNumber);
+                            MailSegment.Console_WriteLine("Bits per value: " + NumberOfBits);
+                            MailSegment.Console_WriteLine("Primitive polynomial: " + PolynomialNumber);
                         }
+                        MailSegment.ConsoleLineToLogSum = false;
+                        MailSegment.ConsoleLineToLog = false;
 
-                        if (MessageSizeFound && ((SegmentSizeL % (long)NumberOfBits) == 0) && ((DataSegments + CodeSegments) <= ((1 << NumberOfBits) - 1)))
+                        if (MessageSizeFound && ((SegmentSizeL % (long)NumberOfBits) == 0) && (TotalUnits <= ((1 << NumberOfBits) - 1)))
                         {
-                            long ValuesPerSegment = SegmentSize * 8 / NumberOfBits;
+                            long ValuesPerSegment = (long)SegmentSize * 8L / (long)NumberOfBits;
 
-                            Console.WriteLine("Values per segment: " + ValuesPerSegment);
+                            MailSegment.ConsoleLineToLog = true;
+                            MailSegment.ConsoleLineToLogSum = true;
+                            MailSegment.Console_WriteLine("Values per segment: " + ValuesPerSegment);
 
-                            int[] ValueSerie = new int[TotalSegments];
-                            int[] ValueSerie_ = new int[TotalSegments];
-
-                            Console.WriteLine();
-
-                            Stopwatch_ SWProgress = new Stopwatch_();
-                            long SWWorkTime = 0;
-                            SWProgress.Reset();
-
-                            // Prepare blank code file
-                            if (Mode == 0)
+                            WorkPoolSizeI = ReedSolomonComputeThreads * ReedSolomonValuesPerThread;
+                            WorkPoolSizeL = ReedSolomonComputeThreads * ReedSolomonValuesPerThread;
+                            WorkPoolSegPerUnit = SegPerUnit;
+                            WorkPoolSizeI_Units = WorkPoolSizeI * SegPerUnit;
+                            long PoolSizeBytes = MF.DataValueParamsCalc(NumberOfBits, WorkPoolSizeL);
+                            RS.DataValueParamsCalc(NumberOfBits, WorkPoolSizeL);
+                            MailSegment.Console_WriteLine("Bits per segment in work pool: " + (WorkPoolSizeL * (long)NumberOfBits));
+                            MailSegment.Console_WriteLine("Values per segment in work pool: " + WorkPoolSizeL);
+                            if ((PoolSizeBytes > 0) && (PoolSizeBytes <= ((long)SegmentSize)))
                             {
-                                // Write blank code segments
-                                byte[] BlankSegment = new byte[SegmentSize];
-                                for (int i = 0; i < SegmentSize; i++)
+                                MailSegment.Console_WriteLine("Bytes per segment in work pool: " + PoolSizeBytes);
+
+                                // Create work pool
+                                WorkPoolRSE = new STH1123.ReedSolomon.ReedSolomonEncoder[WorkPoolSizeI_Units];
+                                WorkPoolRSD = new STH1123.ReedSolomon.ReedSolomonDecoder[WorkPoolSizeI_Units];
+                                WorkPoolValueSerie = new int[WorkPoolSizeI_Units][];
+                                WorkPoolValueSerie_ = new int[WorkPoolSizeI_Units][];
+                                WorkPoolThread = new Thread[ReedSolomonComputeThreads];
+                                WorkPoolDataSegments = DataSegments;
+                                WorkPoolCodeSegments = CodeSegments;
+                                WorkPoolDataUnits = DataUnits;
+                                WorkPoolCodeUnits = CodeUnits;
+                                WorkPoolErasureArray = new int[SegPerUnit][];
+                                for (int i = 0; i < WorkPoolSizeI_Units; i++)
                                 {
-                                    BlankSegment[i] = 0;
+                                    WorkPoolValueSerie[i] = new int[TotalUnits];
+                                    WorkPoolValueSerie_[i] = new int[TotalUnits];
                                 }
-                                for (int i = 0; i < CodeSegments; i++)
+
+                                MailSegment.ConsoleLineToLogSum = false;
+                                MailSegment.ConsoleLineToLog = false;
+                                MailSegment.Console_WriteLine("");
+
+                                if (Program.PromptConfirm(PromptConfirm))
                                 {
-                                    RS.DataSet(i, BlankSegment, SegmentSize);
-                                }
-                            }
 
-                            MF.DataValueFileOpen();
-                            RS.DataValueFileOpen();
+                                    Stopwatch_ SWProgress = new Stopwatch_();
+                                    long SWWorkTime = 0;
+                                    SWProgress.Reset();
 
-                            // Create Galois field for RS code
-                            STH1123.ReedSolomon.GenericGF GGF = new STH1123.ReedSolomon.GenericGF(PolynomialNumber, 1 << NumberOfBits, 1);
-
-                            // Create code
-                            if (Mode == 0)
-                            {
-                                STH1123.ReedSolomon.ReedSolomonEncoder RSE = new STH1123.ReedSolomon.ReedSolomonEncoder(GGF);
-
-                                for (long i = 0; i < ValuesPerSegment; i++)
-                                {
-                                    MF.DataValueParams(i, NumberOfBits);
-                                    RS.DataValueParams(MF);
-
-                                    for (int ii = 0; ii < DataSegments; ii++)
+                                    // Prepare blank code file
+                                    if (Mode == 0)
                                     {
-                                        ValueSerie[ii] = MF.DataValueGet(ii);
-                                    }
-                                    for (int ii = 0; ii < CodeSegments; ii++)
-                                    {
-                                        ValueSerie[ii + DataSegments] = 0;
-                                    }
-                                    RSE.Encode(ValueSerie, CodeSegments);
-                                    for (int ii = 0; ii < CodeSegments; ii++)
-                                    {
-                                        RS.DataValueSet(ii, ValueSerie[ii + DataSegments]);
+                                        MailSegment.Console_WriteLine("Preparing code file");
 
-                                    }
-
-
-                                    if (SWWorkTime < SWProgress.Elapsed())
-                                    {
-                                        while (SWWorkTime < SWProgress.Elapsed())
+                                        // Write blank code segments
+                                        byte[] BlankSegment = new byte[SegmentSize];
+                                        for (int i = 0; i < SegmentSize; i++)
                                         {
-                                            SWWorkTime += 1000L;
+                                            BlankSegment[i] = 0;
                                         }
-                                        Console.WriteLine("Code generation progress: " + (i + 1) + "/" + ValuesPerSegment + " (" + (i * 100 / ValuesPerSegment) + "%)");
-                                    }
-                                }
-                                Console.WriteLine("Code generation progress: " + ValuesPerSegment + "/" + ValuesPerSegment + " (100%)");
-                                Console.WriteLine();
-                                Console.WriteLine("Code file created");
-                            }
-
-                            // Check data and code
-                            if ((Mode >= 1) && (Mode <= 6))
-                            {
-                                int[] ErasureArray = null;
-                                long ValsTrueNotChanged = 0;
-                                long ValsTrueChangedData = 0;
-                                long ValsTrueChangedCode = 0;
-                                long ValsTrueChangedDataCode = 0;
-                                long ValsFalse = 0;
-                                byte[] SegmentMap = new byte[TotalSegments];
-                                byte[] SegmentMod = new byte[TotalSegments];
-                                bool AllowOutsideMap = ((Mode == 5) || (Mode == 6)) ? true : false;
-                                bool AllowModify = (Mode >= 3) ? true : false;
-
-                                // Read map to buffer
-                                for (int i = 0; i < DataSegments; i++)
-                                {
-                                    SegmentMap[i] = MF.MapGet(i);
-                                    SegmentMod[i] = 0;
-                                }
-                                for (int i = 0; i < CodeSegments; i++)
-                                {
-                                    SegmentMap[i + DataSegments] = RS.MapGet(i);
-                                    SegmentMod[i] = 0;
-                                }
-
-                                // Create erasure array
-                                if ((Mode == 2) || (Mode == 4) || (Mode == 6))
-                                {
-                                    List<int> ErasureArray_ = new List<int>();
-                                    for (int i = 0; i < TotalSegments; i++)
-                                    {
-                                        if (SegmentMap[i] == 0)
+                                        for (int i = 0; i < CodeSegments; i++)
                                         {
-                                            ErasureArray_.Add(i);
+                                            RS.DataSet(i, BlankSegment, SegmentSize);
                                         }
-                                    }
-                                    ErasureArray = ErasureArray_.ToArray();
-                                }
 
-                                STH1123.ReedSolomon.ReedSolomonDecoder RSD = new STH1123.ReedSolomon.ReedSolomonDecoder(GGF);
-
-                                for (long i = 0; i < ValuesPerSegment; i++)
-                                {
-                                    MF.DataValueParams(i, NumberOfBits);
-                                    RS.DataValueParams(MF);
-
-                                    for (int ii = 0; ii < DataSegments; ii++)
-                                    {
-                                        ValueSerie[ii] = MF.DataValueGet(ii);
-                                        ValueSerie_[ii] = ValueSerie[ii];
+                                        MailSegment.Console_WriteLine("Code file prepared");
                                     }
-                                    for (int ii = 0; ii < CodeSegments; ii++)
+
+                                    MF.DataValueFileOpen();
+                                    RS.DataValueFileOpen();
+
+                                    // Create Galois field for RS code
+                                    STH1123.ReedSolomon.GenericGF GGF = new STH1123.ReedSolomon.GenericGF(PolynomialNumber, 1 << NumberOfBits, 1);
+
+                                    // Create code
+                                    if (Mode == 0)
                                     {
-                                        ValueSerie[ii + DataSegments] = RS.DataValueGet(ii);
-                                        ValueSerie_[ii + DataSegments] = ValueSerie[ii + DataSegments];
-                                    }
-                                    if (RSD.Decode(ValueSerie, CodeSegments, ErasureArray))
-                                    {
-                                        bool ChangedData = false;
-                                        bool ChangedCode = false;
-                                        for (int ii = 0; ii < DataSegments; ii++)
+                                        for (int i = 0; i < WorkPoolSizeI_Units; i++)
                                         {
-                                            if (ValueSerie[ii] != ValueSerie_[ii])
+                                            WorkPoolRSE[i] = new STH1123.ReedSolomon.ReedSolomonEncoder(GGF);
+                                        }
+
+                                        bool PrintLastProgress = true;
+                                        MailSegment.Log();
+                                        MailSegment.Log("Time stamp", "Processed values since previous entry", "Totally processed values", "All values");
+
+                                        long WorkPoolCount = ValuesPerSegment / WorkPoolSizeL;
+                                        long FilePointer = 0;
+
+                                        PrepareFileThreads(MF, RS);
+                                        if ((ValuesPerSegment % WorkPoolSizeL) > 0)
+                                        {
+                                            WorkPoolCount++;
+                                        }
+
+                                        for (long i = 0; i < WorkPoolCount; i++)
+                                        {
+                                            MF.DataValueParamsOffset(FilePointer);
+                                            RS.DataValueParamsOffset(FilePointer);
+
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
                                             {
-                                                ChangedData = true;
-                                                if (AllowModify && (AllowOutsideMap || (SegmentMap[ii] == 0)))
+                                                int i__ = i_;
+                                                WorkFileThread[i_] = new Thread(() => ThreadDataReadCodeClear(i__));
+                                                WorkFileThread[i_].Start();
+                                            }
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                WorkFileThread[i_].Join();
+                                            }
+
+                                            for (int i_ = 0; i_ < ReedSolomonComputeThreads; i_++)
+                                            {
+                                                int i__ = i_;
+                                                WorkPoolThread[i_] = new Thread(() => WorkPoolEncode(i__));
+                                                WorkPoolThread[i_].Start();
+                                            }
+                                            if (SWWorkTime < SWProgress.Elapsed())
+                                            {
+                                                while (SWWorkTime < SWProgress.Elapsed())
                                                 {
-                                                    MF.DataValueSet(ii, ValueSerie[ii]);
-                                                    SegmentMod[ii] = 1;
+                                                    SWWorkTime += 1000L;
                                                 }
-                                                else
+                                                long I__ = ((i + 1) * WorkPoolSizeL);
+                                                MailSegment.Console_WriteLine("Code generation progress: " + I__ + "/" + ValuesPerSegment + " (" + (i * WorkPoolSizeL * 100L / ValuesPerSegment) + "%)");
+                                                MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(I__).ToString(), I__.ToString(), ValuesPerSegment.ToString());
+                                                if ((I__ + 1) >= ValuesPerSegment)
                                                 {
-                                                    SegmentMod[ii] = 2;
+                                                    PrintLastProgress = false;
+                                                }
+                                            }
+                                            for (int i_ = 0; i_ < ReedSolomonComputeThreads; i_++)
+                                            {
+                                                WorkPoolThread[i_].Join();
+                                            }
+
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                int i__ = i_;
+                                                WorkFileThread[i_] = new Thread(() => ThreadCodeWrite(i__));
+                                                WorkFileThread[i_].Start();
+                                            }
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                WorkFileThread[i_].Join();
+                                            }
+
+                                            FilePointer += PoolSizeBytes;
+                                        }
+                                        if (PrintLastProgress)
+                                        {
+                                            MailSegment.Console_WriteLine("Code generation progress: " + ValuesPerSegment + "/" + ValuesPerSegment + " (100%)");
+                                            MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(ValuesPerSegment).ToString(), ValuesPerSegment.ToString(), ValuesPerSegment.ToString());
+                                        }
+
+
+                                        MailSegment.ConsoleLineToLog = true;
+                                        MailSegment.ConsoleLineToLogSum = true;
+                                        MailSegment.Console_WriteLine("");
+                                        MailSegment.Console_WriteLine("Code file created");
+                                        MailSegment.Console_WriteLine("Total time: " + MailSegment.TimeHMSM(TSW.Elapsed()));
+                                        MailSegment.ConsoleLineToLogSum = false;
+                                        MailSegment.ConsoleLineToLog = false;
+                                    }
+
+                                    // Check data and code
+                                    if ((Mode >= 1) && (Mode <= 6))
+                                    {
+                                        bool PrintLastProgress = true;
+                                        WorkPoolDecodeValsTrueNotChanged = 0;
+                                        WorkPoolDecodeValsTrueChangedData = 0;
+                                        WorkPoolDecodeValsTrueChangedCode = 0;
+                                        WorkPoolDecodeValsTrueChangedDataCode = 0;
+                                        WorkPoolDecodeValsFalse = 0;
+                                        WorkPoolSegmentMap = new byte[SegPerUnit][];
+                                        WorkPoolSegmentMod = new byte[SegPerUnit][];
+                                        WorkPoolSegmentMod_ = new byte[SegPerUnit][];
+                                        for (int i = 0; i < SegPerUnit; i++)
+                                        {
+                                            WorkPoolErasureArray[i] = null;
+                                            WorkPoolSegmentMap[i] = new byte[TotalUnits];
+                                            WorkPoolSegmentMod[i] = new byte[TotalUnits];
+                                            WorkPoolSegmentMod_[i] = new byte[TotalUnits];
+                                        }
+                                        WorkPoolAllowOutsideMap = ((Mode == 5) || (Mode == 6)) ? true : false;
+                                        WorkPoolAllowModify = (Mode >= 3) ? true : false;
+
+                                        // Read map to buffer
+                                        for (int i = 0; i < DataSegmentsReal; i++)
+                                        {
+                                            WorkPoolSegmentMap[i % SegPerUnit][i / SegPerUnit] = MF.MapGet(i);
+                                            WorkPoolSegmentMod[i % SegPerUnit][i / SegPerUnit] = 0;
+                                        }
+                                        for (int i = DataSegments; i < (DataSegments + CodeSegments); i++)
+                                        {
+                                            WorkPoolSegmentMap[i % SegPerUnit][i / SegPerUnit] = RS.MapGet(i - DataSegments);
+                                            WorkPoolSegmentMod[i % SegPerUnit][i / SegPerUnit] = 0;
+                                        }
+
+                                        // Additional dummy data segments are always treated as surviving
+                                        for (int i = DataSegmentsReal; i < DataSegments; i++)
+                                        {
+                                            WorkPoolSegmentMap[i % SegPerUnit][i / SegPerUnit] = 2;
+                                            WorkPoolSegmentMod[i % SegPerUnit][i / SegPerUnit] = 3;
+                                        }
+
+                                        // Create erasure array
+                                        if ((Mode == 2) || (Mode == 4) || (Mode == 6))
+                                        {
+                                            for (int i_ = 0; i_ < SegPerUnit; i_++)
+                                            {
+                                                List<int> ErasureArray_ = new List<int>();
+                                                for (int i = 0; i < TotalUnits; i++)
+                                                {
+                                                    if (WorkPoolSegmentMap[i_][i] == 0)
+                                                    {
+                                                        ErasureArray_.Add(i);
+                                                    }
+                                                }
+                                                WorkPoolErasureArray[i_] = ErasureArray_.ToArray();
+                                            }
+                                        }
+
+                                        for (int i = 0; i < WorkPoolSizeI_Units; i++)
+                                        {
+                                            WorkPoolRSD[i] = new STH1123.ReedSolomon.ReedSolomonDecoder(GGF);
+                                        }
+
+                                        MailSegment.Log();
+                                        MailSegment.Log("Time stamp", "Processed values since previous entry", "Totally processed values", "All values");
+
+                                        long WorkPoolCount = ValuesPerSegment / WorkPoolSizeL;
+                                        long FilePointer = 0;
+
+                                        PrepareFileThreads(MF, RS);
+                                        if ((ValuesPerSegment % WorkPoolSizeL) > 0)
+                                        {
+                                            WorkPoolCount++;
+                                        }
+
+                                        for (long i = 0; i < WorkPoolCount; i++)
+                                        {
+                                            MF.DataValueParamsOffset(FilePointer);
+                                            RS.DataValueParamsOffset(FilePointer);
+
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                int i__ = i_;
+                                                WorkFileThread[i_] = new Thread(() => ThreadDataReadCodeRead(i__));
+                                                WorkFileThread[i_].Start();
+                                            }
+
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                WorkFileThread[i_].Join();
+                                            }
+
+                                            for (int i__ = 0; i__ < SegPerUnit; i__++)
+                                            {
+                                                for (int i_ = 0; i_ < TotalUnits; i_++)
+                                                {
+                                                    WorkPoolSegmentMod_[i__][i_] = 0;
+                                                }
+                                            }
+
+                                            for (int i_ = 0; i_ < ReedSolomonComputeThreads; i_++)
+                                            {
+                                                int i__ = i_;
+                                                WorkPoolThread[i_] = new Thread(() => WorkPoolDecode(i__));
+                                                WorkPoolThread[i_].Start();
+                                            }
+                                            if (SWWorkTime < SWProgress.Elapsed())
+                                            {
+                                                while (SWWorkTime < SWProgress.Elapsed())
+                                                {
+                                                    SWWorkTime += 1000L;
+                                                }
+                                                long I__ = ((i + 1) * WorkPoolSizeL);
+                                                MailSegment.Console_WriteLine("Recovery progress: " + I__ + "/" + ValuesPerSegment + " (" + (i * WorkPoolSizeL * 100L / ValuesPerSegment) + "%)");
+                                                MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(I__).ToString(), I__.ToString(), ValuesPerSegment.ToString());
+                                                if ((i + 1) == ValuesPerSegment)
+                                                {
+                                                    PrintLastProgress = false;
+                                                }
+                                            }
+                                            for (int i_ = 0; i_ < ReedSolomonComputeThreads; i_++)
+                                            {
+                                                WorkPoolThread[i_].Join();
+                                            }
+
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                int i__ = i_;
+                                                WorkFileThread[i_] = new Thread(() => ThreadDataWriteCodeWrite(i__));
+                                                WorkFileThread[i_].Start();
+                                            }
+                                            for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
+                                            {
+                                                WorkFileThread[i_].Join();
+                                            }
+
+                                            FilePointer += PoolSizeBytes;
+                                        }
+
+                                        if (PrintLastProgress)
+                                        {
+                                            MailSegment.Console_WriteLine("Recovery progress: " + ValuesPerSegment + "/" + ValuesPerSegment + " (100%)");
+                                            MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(ValuesPerSegment).ToString(), (ValuesPerSegment).ToString(), ValuesPerSegment.ToString());
+                                        }
+
+                                        MailSegment.ConsoleLineToLog = true;
+                                        MailSegment.ConsoleLineToLogSum = true;
+                                        MailSegment.Console_WriteLine("");
+
+
+                                        long ValsAll = 0;
+                                        ValsAll += WorkPoolDecodeValsTrueNotChanged;
+                                        ValsAll += WorkPoolDecodeValsTrueChangedData;
+                                        ValsAll += WorkPoolDecodeValsTrueChangedCode;
+                                        ValsAll += WorkPoolDecodeValsTrueChangedDataCode;
+                                        ValsAll += WorkPoolDecodeValsFalse;
+                                        MailSegment.Console_WriteLine("Total values per unit: " + ValsAll);
+                                        MailSegment.Console_WriteLine("Values correct already: " + WorkPoolDecodeValsTrueNotChanged);
+                                        MailSegment.Console_WriteLine("Recovered values in data only: " + WorkPoolDecodeValsTrueChangedData);
+                                        MailSegment.Console_WriteLine("Recovered values in code only: " + WorkPoolDecodeValsTrueChangedCode);
+                                        MailSegment.Console_WriteLine("Recovered values in both data and code: " + WorkPoolDecodeValsTrueChangedDataCode);
+                                        MailSegment.Console_WriteLine("Unrecoverable incorrect values: " + WorkPoolDecodeValsFalse);
+                                        MailSegment.Console_WriteLine("");
+
+                                        int SegDataModified1 = 0;
+                                        int SegCodeModified1 = 0;
+                                        int SegDataModified0 = 0;
+                                        int SegCodeModified0 = 0;
+                                        int SegDataUnModified = 0;
+                                        int SegCodeUnModified = 0;
+                                        for (int i_ = 0; i_ < SegPerUnit; i_++)
+                                        {
+                                            for (int i = 0; i < DataUnits; i++)
+                                            {
+                                                switch (WorkPoolSegmentMod[i_][i])
+                                                {
+                                                    case 0:
+                                                        SegDataUnModified++;
+                                                        break;
+                                                    case 1:
+                                                        SegDataModified1++;
+                                                        break;
+                                                    case 2:
+                                                        SegDataModified0++;
+                                                        break;
+                                                }
+                                            }
+                                            for (int i = 0; i < CodeUnits; i++)
+                                            {
+                                                switch (WorkPoolSegmentMod[i_][i + DataUnits])
+                                                {
+                                                    case 0:
+                                                        SegCodeUnModified++;
+                                                        break;
+                                                    case 1:
+                                                        SegCodeModified1++;
+                                                        break;
+                                                    case 2:
+                                                        SegCodeModified0++;
+                                                        break;
                                                 }
                                             }
                                         }
-                                        for (int ii = 0; ii < CodeSegments; ii++)
-                                        {
-                                            if (ValueSerie[ii + DataSegments] != ValueSerie_[ii + DataSegments])
-                                            {
-                                                ChangedCode = true;
-                                                if (AllowModify && (AllowOutsideMap || (SegmentMap[ii + DataSegments] == 0)))
-                                                {
-                                                    RS.DataValueSet(ii, ValueSerie[ii + DataSegments]);
-                                                    SegmentMod[ii + DataSegments] = 1;
-                                                }
-                                                else
-                                                {
-                                                    SegmentMod[ii + DataSegments] = 2;
-                                                }
-                                            }
-                                        }
+                                        int SegDataAll = SegDataUnModified + SegDataModified1 + SegDataModified0;
+                                        int SegCodeAll = SegCodeUnModified + SegCodeModified1 + SegCodeModified0;
 
-                                        if (ChangedData)
+                                        MailSegment.Console_WriteLine("Data segments - total: " + SegDataAll);
+                                        MailSegment.Console_WriteLine("Data segments - modified and saved: " + SegDataModified1);
+                                        MailSegment.Console_WriteLine("Data segments - modified and not saved: " + SegDataModified0);
+                                        MailSegment.Console_WriteLine("Data segments - not modified: " + SegDataUnModified);
+                                        MailSegment.Console_WriteLine("Code segments - total: " + SegCodeAll);
+                                        MailSegment.Console_WriteLine("Code segments - modified and saved: " + SegCodeModified1);
+                                        MailSegment.Console_WriteLine("Code segments - modified and not saved: " + SegCodeModified0);
+                                        MailSegment.Console_WriteLine("Code segments - not modified: " + SegCodeUnModified);
+
+                                        MailSegment.Console_WriteLine("");
+
+
+                                        // Interpreting the result
+                                        int ResultNumber = 0;
+                                        if (WorkPoolDecodeValsFalse == 0)
                                         {
-                                            if (ChangedCode)
+                                            if ((ValsAll == WorkPoolDecodeValsTrueNotChanged) && (SegDataAll == SegDataUnModified) && (SegCodeAll == SegCodeUnModified))
                                             {
-                                                ValsTrueChangedDataCode++;
+                                                ResultNumber = 2;
                                             }
-                                            else
+                                            if ((WorkPoolDecodeValsTrueChangedData > 0) || (WorkPoolDecodeValsTrueChangedCode > 0) || (WorkPoolDecodeValsTrueChangedDataCode > 0))
                                             {
-                                                ValsTrueChangedData++;
+                                                ResultNumber = 3;
                                             }
                                         }
                                         else
                                         {
-                                            if (ChangedCode)
+                                            if (ValsAll == WorkPoolDecodeValsTrueNotChanged)
                                             {
-                                                ValsTrueChangedCode++;
+                                                ResultNumber = 1;
+                                            }
+                                            if (ValsAll > WorkPoolDecodeValsTrueNotChanged)
+                                            {
+                                                ResultNumber = 4;
+                                            }
+                                        }
+
+                                        // Printing the result message
+                                        switch (ResultNumber)
+                                        {
+                                            case 0:
+                                                MailSegment.Console_WriteLine("Other scenario, not automatically interpreted");
+                                                break;
+                                            case 1:
+                                                MailSegment.Console_WriteLine("Data file or code file could not be recovered");
+                                                break;
+                                            case 2:
+                                                MailSegment.Console_WriteLine("Data file matches to code file, both files was fully correct already");
+                                                break;
+                                            case 3:
+                                                MailSegment.Console_WriteLine("Data file or code file was corrupted and fully recovered");
+                                                break;
+                                            case 4:
+                                                MailSegment.Console_WriteLine("Data file or code file was corrupted and partially recovered");
+                                                break;
+                                        }
+
+                                        // Printing the message about saved information
+                                        if ((ResultNumber == 3) || (ResultNumber == 4))
+                                        {
+                                            if ((SegDataModified0 == 0) && (SegDataModified1 == 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data file: None of information was recovered or modified");
+                                            }
+                                            if ((SegDataModified0 > 0) && (SegDataModified1 == 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data file: None of recovered information was saved");
+                                            }
+                                            if ((SegDataModified0 > 0) && (SegDataModified1 > 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data file: Some of recovered information was saved");
+                                            }
+                                            if ((SegDataModified0 == 0) && (SegDataModified1 > 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data file: All of recovered information was saved");
+                                            }
+
+                                            if ((SegCodeModified0 == 0) && (SegCodeModified1 == 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Code file: None of information was recovered or modified");
+                                            }
+                                            if ((SegCodeModified0 > 0) && (SegCodeModified1 == 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Code file: None of recovered information was saved");
+                                            }
+                                            if ((SegCodeModified0 > 0) && (SegCodeModified1 > 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Code file: Some of recovered information was saved");
+                                            }
+                                            if ((SegCodeModified0 == 0) && (SegCodeModified1 > 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Code file: All of recovered information was saved");
+                                            }
+                                        }
+
+                                        MailSegment.Console_WriteLine("Total time: " + MailSegment.TimeHMSM(TSW.Elapsed()));
+                                        MailSegment.ConsoleLineToLogSum = false;
+                                        MailSegment.ConsoleLineToLog = false;
+
+                                    }
+
+                                    // Analyze map files for recovery
+                                    if (Mode == 7)
+                                    {
+                                        int BunchTotal = 0;
+                                        int BunchRecovery = 0;
+                                        int BunchBad = 0;
+                                        int BunchGood = 0;
+                                        int BunchRecoveryData = 0;
+                                        int BunchBadData = 0;
+                                        int BunchGoodData = 0;
+                                        int BunchRecoveryCode = 0;
+                                        int BunchBadCode = 0;
+                                        int BunchGoodCode = 0;
+
+                                        WorkPoolSegmentMap = new byte[SegPerUnit][];
+                                        for (int i = 0; i < SegPerUnit; i++)
+                                        {
+                                            WorkPoolSegmentMap[i] = new byte[TotalUnits];
+                                        }
+
+                                        // Read map to buffer
+                                        for (int i = 0; i < DataSegmentsReal; i++)
+                                        {
+                                            WorkPoolSegmentMap[i % SegPerUnit][i / SegPerUnit] = MF.MapGet(i);
+                                        }
+                                        for (int i = DataSegments; i < (DataSegments + CodeSegments); i++)
+                                        {
+                                            WorkPoolSegmentMap[i % SegPerUnit][i / SegPerUnit] = RS.MapGet(i - DataSegments);
+                                        }
+
+                                        // Additional dummy data segments are always treated as surviving
+                                        for (int i = DataSegmentsReal; i < DataSegments; i++)
+                                        {
+                                            WorkPoolSegmentMap[i % SegPerUnit][i / SegPerUnit] = 2;
+                                        }
+
+                                        // Analyze bunches
+                                        MailSegment.Log();
+                                        MailSegment.Log("Bunch", "Total", "Surviving", "Missing", "Data total", "Data surviving", "Data missing", "Code total", "Code surviving", "Code missing");
+                                        for (int i_ = 0; i_ < SegPerUnit; i_++)
+                                        {
+                                            string BunchMsg = "Bunch " + (i_ + 1) + "/" + SegPerUnit + " - ";
+                                            int MissingData = 0;
+                                            int SurvivingData = 0;
+                                            int MissingCode = 0;
+                                            int SurvivingCode = 0;
+
+                                            for (int i = 0; i < TotalUnits; i++)
+                                            {
+                                                if (WorkPoolSegmentMap[i_][i] == 0)
+                                                {
+                                                    if (i < DataUnits)
+                                                    {
+                                                        MissingData++;
+                                                    }
+                                                    else
+                                                    {
+                                                        MissingCode++;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    if (i < DataUnits)
+                                                    {
+                                                        SurvivingData++;
+                                                    }
+                                                    else
+                                                    {
+                                                        SurvivingCode++;
+                                                    }
+                                                }
+                                            }
+
+                                            string _TT = (SurvivingData + SurvivingCode + MissingData + MissingCode).ToString();
+                                            string _TS = (SurvivingData + SurvivingCode).ToString();
+                                            string _TM = (MissingData + MissingCode).ToString();
+                                            string _DT = (SurvivingData + MissingData).ToString();
+                                            string _DS = (SurvivingData).ToString();
+                                            string _DM = (MissingData).ToString();
+                                            string _CT = (SurvivingCode + MissingCode).ToString();
+                                            string _CS = (SurvivingCode).ToString();
+                                            string _CM = (MissingCode).ToString();
+                                            MailSegment.Console_WriteLine(BunchMsg + "Total segments: " + _TT);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Total surviving: " + _TS);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Total missing: " + _TM);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Data segments: " + _DT);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Data surviving: " + _DS);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Data missing: " + _DM);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Code segments: " + _CT);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Code surviving: " + _CS);
+                                            MailSegment.Console_WriteLine(BunchMsg + "Code missing: " + _CM);
+
+                                            MailSegment.Log((i_ + 1).ToString(), _TT, _TS, _TM, _DT, _DS, _DM, _CT, _CS, _CM);
+
+                                            BunchTotal++;
+                                            if ((MissingData + MissingCode) == 0)
+                                            {
+                                                BunchGood++;
+                                                BunchGoodData++;
+                                                BunchGoodCode++;
                                             }
                                             else
                                             {
-                                                ValsTrueNotChanged++;
+                                                if ((MissingData + MissingCode) > (MissingCode + SurvivingCode))
+                                                {
+                                                    BunchBad++;
+                                                    if (MissingData > 0)
+                                                    {
+                                                        BunchBadData++;
+                                                    }
+                                                    else
+                                                    {
+                                                        BunchGoodData++;
+                                                    }
+                                                    if (MissingCode > 0)
+                                                    {
+                                                        BunchBadCode++;
+                                                    }
+                                                    else
+                                                    {
+                                                        BunchGoodCode++;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    BunchRecovery++;
+                                                    if (MissingData > 0)
+                                                    {
+                                                        BunchRecoveryData++;
+                                                    }
+                                                    else
+                                                    {
+                                                        BunchGoodData++;
+                                                    }
+                                                    if (MissingCode > 0)
+                                                    {
+                                                        BunchRecoveryCode++;
+                                                    }
+                                                    else
+                                                    {
+                                                        BunchGoodCode++;
+                                                    }
+                                                }
                                             }
                                         }
-                                    }
-                                    else
-                                    {
-                                        ValsFalse++;
-                                    }
 
+                                        MailSegment.ConsoleLineToLog = true;
+                                        MailSegment.ConsoleLineToLogSum = true;
 
-                                    if (SWWorkTime < SWProgress.Elapsed())
-                                    {
-                                        while (SWWorkTime < SWProgress.Elapsed())
+                                        MailSegment.Console_WriteLine("");
+                                        MailSegment.Console_WriteLine("Bunches - total: " + BunchTotal);
+                                        MailSegment.Console_WriteLine("Bunches - good: " + BunchGood);
+                                        MailSegment.Console_WriteLine("Bunches - recoverable: " + BunchRecovery);
+                                        MailSegment.Console_WriteLine("Bunches - unrecoverable: " + BunchBad);
+                                        MailSegment.Console_WriteLine("Bunches - data - good: " + BunchGoodData);
+                                        MailSegment.Console_WriteLine("Bunches - data - recoverable: " + BunchRecoveryData);
+                                        MailSegment.Console_WriteLine("Bunches - data - unrecoverable: " + BunchBadData);
+                                        MailSegment.Console_WriteLine("Bunches - code - good: " + BunchGoodCode);
+                                        MailSegment.Console_WriteLine("Bunches - code - recoverable: " + BunchRecoveryCode);
+                                        MailSegment.Console_WriteLine("Bunches - code - unrecoverable: " + BunchBadCode);
+                                        MailSegment.Console_WriteLine("");
+                                        if (BunchTotal == BunchGood)
                                         {
-                                            SWWorkTime += 1000L;
+                                            MailSegment.Console_WriteLine("Data and code are complete");
                                         }
-                                        Console.WriteLine("Recovery progress: " + (i + 1) + "/" + ValuesPerSegment + " (" + (i * 100 / ValuesPerSegment) + "%)");
-                                    }
-                                }
-                                Console.WriteLine("Recovery progress: " + ValuesPerSegment + "/" + ValuesPerSegment + " (100%)");
+                                        else
+                                        {
+                                            if ((BunchRecovery > 0) && (BunchBad == 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data and code are incomplete and fully recoverable");
+                                            }
+                                            if ((BunchRecovery > 0) && (BunchBad > 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data and code are incomplete and partially recoverable");
+                                            }
+                                            if ((BunchRecovery == 0) && (BunchBad > 0))
+                                            {
+                                                MailSegment.Console_WriteLine("Data and code are incomplete and recovery is not possible");
+                                            }
+                                        }
 
-                                Console.WriteLine();
-                                long ValsAll = 0;
-                                ValsAll += ValsTrueNotChanged;
-                                ValsAll += ValsTrueChangedData;
-                                ValsAll += ValsTrueChangedCode;
-                                ValsAll += ValsTrueChangedDataCode;
-                                ValsAll += ValsFalse;
-                                Console.WriteLine("Total values per segment: " + ValsAll);
-                                Console.WriteLine("Values correct already: " + ValsTrueNotChanged);
-                                Console.WriteLine("Recovered values in data only: " + ValsTrueChangedData);
-                                Console.WriteLine("Recovered values in code only: " + ValsTrueChangedCode);
-                                Console.WriteLine("Recovered values in both data and code: " + ValsTrueChangedDataCode);
-                                Console.WriteLine("Unrecoverable incorrect values: " + ValsFalse);
-                                Console.WriteLine();
-
-                                int SegDataModified1 = 0;
-                                int SegCodeModified1 = 0;
-                                int SegDataModified0 = 0;
-                                int SegCodeModified0 = 0;
-                                int SegDataUnModified = 0;
-                                int SegCodeUnModified = 0;
-                                for (int i = 0; i < DataSegments; i++)
-                                {
-                                    switch (SegmentMod[i])
-                                    {
-                                        case 0:
-                                            SegDataUnModified++;
-                                            break;
-                                        case 1:
-                                            SegDataModified1++;
-                                            break;
-                                        case 2:
-                                            SegDataModified0++;
-                                            break;
-                                    }
-                                }
-                                for (int i = 0; i < CodeSegments; i++)
-                                {
-                                    switch (SegmentMod[i + DataSegments])
-                                    {
-                                        case 0:
-                                            SegCodeUnModified++;
-                                            break;
-                                        case 1:
-                                            SegCodeModified1++;
-                                            break;
-                                        case 2:
-                                            SegCodeModified0++;
-                                            break;
-                                    }
-                                }
-                                int SegDataAll = SegDataUnModified + SegDataModified1 + SegDataModified0;
-                                int SegCodeAll = SegCodeUnModified + SegCodeModified1 + SegCodeModified0;
-
-                                Console.WriteLine("Data segments - total: " + SegDataAll);
-                                Console.WriteLine("Data segments - modified and saved: " + SegDataModified1);
-                                Console.WriteLine("Data segments - modified and not saved: " + SegDataModified0);
-                                Console.WriteLine("Data segments - not modified: " + SegDataUnModified);
-                                Console.WriteLine("Code segments - total: " + SegCodeAll);
-                                Console.WriteLine("Code segments - modified and saved: " + SegCodeModified1);
-                                Console.WriteLine("Code segments - modified and not saved: " + SegCodeModified0);
-                                Console.WriteLine("Code segments - not modified: " + SegCodeUnModified);
-
-                                Console.WriteLine();
-
-
-                                // Interpreting the result
-                                int ResultNumber = 0;
-                                if (ValsFalse == 0)
-                                {
-                                    if ((ValsAll == ValsTrueNotChanged) && (SegDataAll == SegDataUnModified) && (SegCodeAll == SegCodeUnModified))
-                                    {
-                                        ResultNumber = 2;
-                                    }
-                                    if ((ValsTrueChangedData > 0) || (ValsTrueChangedCode > 0) || (ValsTrueChangedDataCode > 0))
-                                    {
-                                        ResultNumber = 3;
-                                    }
-                                }
-                                else
-                                {
-                                    if (ValsAll == ValsTrueNotChanged)
-                                    {
-                                        ResultNumber = 1;
-                                    }
-                                    if (ValsAll > ValsTrueNotChanged)
-                                    {
-                                        ResultNumber = 4;
-                                    }
-                                }
-
-                                // Printing the result message
-                                switch (ResultNumber)
-                                {
-                                    case 0:
-                                        Console.WriteLine("Other scenario, not automatically interpreted");
-                                        break;
-                                    case 1:
-                                        Console.WriteLine("Data file or code file could not be recovered");
-                                        break;
-                                    case 2:
-                                        Console.WriteLine("Data file matches to code file, both files was fully correct already");
-                                        break;
-                                    case 3:
-                                        Console.WriteLine("Data file or code file was corrupted and fully recovered");
-                                        break;
-                                    case 4:
-                                        Console.WriteLine("Data file or code file was corrupted and partially recovered");
-                                        break;
-                                }
-
-                                // Printing the message about saved information
-                                if ((ResultNumber == 3) || (ResultNumber == 4))
-                                {
-                                    if ((SegDataModified0 == 0) && (SegDataModified1 == 0))
-                                    {
-                                        Console.WriteLine("Data file: None of information was recovered or modified");
-                                    }
-                                    if ((SegDataModified0 > 0) && (SegDataModified1 == 0))
-                                    {
-                                        Console.WriteLine("Data file: None of recovered information was saved");
-                                    }
-                                    if ((SegDataModified0 > 0) && (SegDataModified1 > 0))
-                                    {
-                                        Console.WriteLine("Data file: Some of recovered information was saved");
-                                    }
-                                    if ((SegDataModified0 == 0) && (SegDataModified1 > 0))
-                                    {
-                                        Console.WriteLine("Data file: All of recovered information was saved");
+                                        MailSegment.Console_WriteLine("Total time: " + MailSegment.TimeHMSM(TSW.Elapsed()));
+                                        MailSegment.ConsoleLineToLogSum = false;
+                                        MailSegment.ConsoleLineToLog = false;
                                     }
 
-                                    if ((SegCodeModified0 == 0) && (SegCodeModified1 == 0))
-                                    {
-                                        Console.WriteLine("Code file: None of information was recovered or modified");
-                                    }
-                                    if ((SegCodeModified0 > 0) && (SegCodeModified1 == 0))
-                                    {
-                                        Console.WriteLine("Code file: None of recovered information was saved");
-                                    }
-                                    if ((SegCodeModified0 > 0) && (SegCodeModified1 > 0))
-                                    {
-                                        Console.WriteLine("Code file: Some of recovered information was saved");
-                                    }
-                                    if ((SegCodeModified0 == 0) && (SegCodeModified1 > 0))
-                                    {
-                                        Console.WriteLine("Code file: All of recovered information was saved");
-                                    }
-                                }
+                                    MF.DataValueFileClose();
+                                    RS.DataValueFileClose();
 
-                            }
-
-                            MF.DataValueFileClose();
-                            RS.DataValueFileClose();
-
-                            // Filling in the map files
-                            if (Mode == 0)
-                            {
-                                for (int i = 0; i < DataSegments; i++)
-                                {
-                                    MF.MapSet(i, 1);
-                                }
-                                for (int i = 0; i < CodeSegments; i++)
-                                {
-                                    RS.MapSet(i, 1);
-                                }
-                                MF.ResizeMap();
-                                RS.ResizeMap();
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine();
-                            if (MessageSizeFound)
-                            {
-                                if ((SegmentSizeL % (long)NumberOfBits) > 0)
-                                {
-                                    Console.WriteLine("Segment size in bits (" + SegmentSizeL + ") is not divisible by bits per value (" + NumberOfBits + ")");
-                                }
-                                if (((DataSegments + CodeSegments) > ((1 << NumberOfBits) - 1)))
-                                {
-                                    Console.WriteLine("Number of all segments (" + (DataSegments + CodeSegments) + ") exceedes " + NumberOfBits + "-bit limit (" + ((1 << NumberOfBits) - 1) + ")");
+                                    // Filling in the map files
+                                    if (Mode == 0)
+                                    {
+                                        for (int i = 0; i < DataSegments; i++)
+                                        {
+                                            MF.MapSet(i, 1);
+                                        }
+                                        for (int i = 0; i < CodeSegments; i++)
+                                        {
+                                            RS.MapSet(i, 1);
+                                        }
+                                        MF.ResizeMap();
+                                        RS.ResizeMap();
+                                    }
                                 }
                             }
                             else
                             {
-                                Console.WriteLine("Number of all segments (" + (DataSegments + CodeSegments) + ") - appropriate value size not found");
+                                MailSegment.Console_WriteLine("Number of bits per segment in work pool must be divisible by 8");
+                                MailSegment.Console_WriteLine("Number of bytes per segment in work pool must not greater than segment size");
+                            }
+                        }
+                        else
+                        {
+                            MailSegment.ConsoleLineToLog = true;
+                            MailSegment.ConsoleLineToLogSum = true;
+                            MailSegment.Console_WriteLine("");
+                            if (MessageSizeFound)
+                            {
+                                if ((SegmentSizeL % (long)NumberOfBits) > 0)
+                                {
+                                    MailSegment.Console_WriteLine("Segment size in bits (" + SegmentSizeL + ") is not divisible by bits per value (" + NumberOfBits + ")");
+                                }
+                                if (((TotalUnits) > ((1 << NumberOfBits) - 1)))
+                                {
+                                    MailSegment.Console_WriteLine("Number of all units (" + (TotalUnits) + ") exceedes " + NumberOfBits + "-bit limit (" + ((1 << NumberOfBits) - 1) + ")");
+                                }
+                            }
+                            else
+                            {
+                                MailSegment.Console_WriteLine("Number of all segments (" + (TotalUnits) + ") - appropriate value size not found");
                             }
                             bool WasWritten = false;
+                            string SegmentInfo = "Allowed number of bits per value for this file: ";
                             for (int i = 2; i <= 30; i++)
                             {
                                 int ValX = (1 << i);
-                                if (((DataSegments + CodeSegments) <= (ValX - 1)) && ((SegmentSizeL % (long)i) == 0))
+                                if (((TotalUnits) <= (ValX - 1)) && ((SegmentSizeL % (long)i) == 0))
                                 {
                                     if (WasWritten)
                                     {
-                                        Console.Write(", ");
+                                        SegmentInfo = SegmentInfo + ", ";
                                     }
-                                    else
-                                    {
-                                        Console.Write("Allowed number of bits per value for this file: ");
-                                    }
-                                    Console.Write(i);
+                                    SegmentInfo = SegmentInfo + i.ToString();
                                     WasWritten = true;
                                 }
                             }
-                            if (!WasWritten)
+                            if (WasWritten)
                             {
-                                Console.WriteLine("Try using another segment size.");
+                                MailSegment.Console_WriteLine(SegmentInfo);
                             }
-                            Console.WriteLine();
+                            else
+                            {
+                                MailSegment.Console_WriteLine("Try using another segment size.");
+                            }
+                            MailSegment.Console_WriteLine("Total time: " + MailSegment.TimeHMSM(TSW.Elapsed()));
+                            MailSegment.ConsoleLineToLogSum = false;
+                            MailSegment.ConsoleLineToLog = false;
                         }
 
                         RS.Close();
                     }
                     else
                     {
-                        Console.WriteLine("Code file open error: " + RS.OpenError);
+                        MailSegment.ConsoleLineToLog = true;
+                        MailSegment.ConsoleLineToLogSum = true;
+                        MailSegment.Console_WriteLine("Code file open error: " + RS.OpenError);
+                        MailSegment.ConsoleLineToLogSum = false;
+                        MailSegment.ConsoleLineToLog = false;
                     }
                     MF.Close();
                 }
                 else
                 {
-                    Console.WriteLine("Data file open error: " + MF.OpenError);
+                    MailSegment.ConsoleLineToLog = true;
+                    MailSegment.ConsoleLineToLogSum = true;
+                    MailSegment.Console_WriteLine("Data file open error: " + MF.OpenError);
+                    MailSegment.ConsoleLineToLogSum = false;
+                    MailSegment.ConsoleLineToLog = false;
                 }
             }
         }
