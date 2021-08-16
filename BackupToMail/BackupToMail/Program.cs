@@ -285,6 +285,8 @@ namespace BackupToMail
 
                     case "CONFIG": ProgMode = 3; break;
                     case "MAP": ProgMode = 6; break;
+
+                    case "SETCONF": ProgMode = 8; break;
                 }
             }
             
@@ -1329,9 +1331,29 @@ namespace BackupToMail
                     }
                     return;
                 }
+                return;
+            }
 
-
-
+            // Change configuration file
+            if ((ProgMode == 8) && (args.Length >= 2))
+            {
+                string P = args[1];
+                if (args.Length == 2)
+                {
+                    Console.WriteLine("Remove \"" + P + "\" from configuration");
+                    CF.ParamRemove(P);
+                }
+                else
+                {
+                    string V = args[2];
+                    for (int i = 3; i < args.Length; i++)
+                    {
+                        V = V + " " + args[i];
+                    }
+                    CF.ParamSet(P, V);
+                    Console.WriteLine("Set \"" + P + "\" as \"" + V + "\" in configuration");
+                }
+                CF.FileSave("Config.txt");
                 return;
             }
 
@@ -1432,6 +1454,9 @@ namespace BackupToMail
             Console.WriteLine(" 0 - Print configuration without test (default)");
             Console.WriteLine(" 1 - Connection test and print full configuration");
             Console.WriteLine(" 2 - Connection test and print test results only");
+            Console.WriteLine();
+            Console.WriteLine("Set configuration parameter:");
+            Console.WriteLine("BackupToMail SETCONF <parameter> [<value>]");
             Console.WriteLine();
         }
     }

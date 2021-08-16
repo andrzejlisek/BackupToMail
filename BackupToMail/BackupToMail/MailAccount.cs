@@ -21,8 +21,8 @@ namespace BackupToMail
     public class MailAccount
     {
         public bool DeleteIdx = false;
-        public int DownloadMinExists = 0;
-        public int DownloadMaxExists = 0;
+        public int[] DownloadMinExists = null;
+        public int[] DownloadMaxExists = null;
         public int DownloadMinAccount = 0;
         public int DownloadMaxAccount = 0;
         public int MutexNo = 0;

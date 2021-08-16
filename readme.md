@@ -126,6 +126,27 @@ BackupToMail.exe CONFIG 1,2,4 1 5
 
 Some accounts requires sign in within certain time period since last sign in \(see account terms of use for details\)\. The connection test signs in to every specified server and resets the inactivity time\. In all connection failure cases, there will be printed the error message returned from the server\.
 
+## Configuration changing
+
+You can change any configuration parameter and value using the **SETCONF** parameter by following command:
+
+
+* **SETCONF word** \- Set configuration parameter\.
+* **Parameter** \- Configuration parameter\.
+* **Value** \- Value of the parameter, it can be blank or omitted\.
+
+This command modifies the **Config\.txt** file and allows to changing configuration from command line or script\. The **Config\.txt** file will be modified and may be rearranged \(but without meaning change\), so it is recommended to backup the **Config\.txt** before running this command\. The parameter name will not be validated\. If parameter does not exists in the file, it will be appended\. To set the **DownloadRetry** to **10**, run this command:
+
+```
+BackupToMail.exe SETCONF DownloadRetry 10
+```
+
+To remove parameter from **Config\.txt** file, ommit the **Value** parameter\. To remove the DownloadRetry parameter \(use the default value\), run the following command:
+
+```
+BackupToMail.exe SETCONF DownloadRetry
+```
+
 # Map file
 
 The main actions, such as uploading and downloading files creates or uses the map file, which must be provided to do such action\. This file can be used to:

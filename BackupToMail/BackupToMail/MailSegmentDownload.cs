@@ -539,10 +539,14 @@ namespace BackupToMail
         {
             int DeletedMsgs = 0;
             int MF_Length = MF.Length;
+            int[] IdxMinExists = new int[MF_Length];
+            int[] IdxMaxExists = new int[MF_Length];
             string[] FileName = new string[MF_Length];
             for (int i = 0; i < MF_Length; i++)
             {
                 FileName[i] = Digest(FileName_[i]);
+                IdxMinExists[i] = -1;
+                IdxMaxExists[i] = -1;
             }
             int HeaderThread = 0;
             bool DownloadMessage = false;
@@ -555,8 +559,6 @@ namespace BackupToMail
             int IdxMinAccount = MailAccountList[Account].DownloadMinAccount;
             int IdxMaxAccount = MailAccountList[Account].DownloadMaxAccount;
             int IdxEnd = 0;
-            int IdxMinExists = -1;
-            int IdxMaxExists = -1;
             int HeaderRetryC = DownloadRetry;
             int HeaderRetryI = HeaderRetryC;
             bool Undownloadable = false;
@@ -895,13 +897,13 @@ namespace BackupToMail
                                         // 6 - Digest
                                         if (Good)
                                         {
-                                            if ((IdxMinExists < 0) || (IdxMinExists > i))
+                                            if ((IdxMinExists[FileI] < 0) || (IdxMinExists[FileI] > MsgIdx))
                                             {
-                                                IdxMinExists = i;
+                                                IdxMinExists[FileI] = MsgIdx;
                                             }
-                                            if ((IdxMaxExists < 0) || (IdxMaxExists < i))
+                                            if ((IdxMaxExists[FileI] < 0) || (IdxMaxExists[FileI] < MsgIdx))
                                             {
-                                                IdxMaxExists = i;
+                                                IdxMaxExists[FileI] = MsgIdx;
                                             }
                                             if (DownloadMessage)
                                             {
@@ -1508,8 +1510,8 @@ namespace BackupToMail
                 return;
             }
 
-            int[] IdxMin_ = new int[IdxMin.Length];
-            int[] IdxMax_ = new int[IdxMax.Length];
+            int[,] IdxMin_ = new int[FileCount, IdxMin.Length];
+            int[,] IdxMax_ = new int[FileCount, IdxMax.Length];
             MailFile[] MF = new MailFile[FileCount];
             bool[] MF_Open = new bool[FileCount];
             for (int i = 0; i < FileCount; i++)
@@ -1566,8 +1568,11 @@ namespace BackupToMail
                         MailAccountList[Account[i]].DownloadMinAccount = IdxMin[i];
                         MailAccountList[Account[i]].DownloadMaxAccount = IdxMax[i];
                         FileDownloadAccount(Account[i], FileDownloadReverseOrder, FileDownloadMode_, FileDeleteMode_, FileName, ref MF);
-                        IdxMin_[i] = MailAccountList[Account[i]].DownloadMinExists + 1;
-                        IdxMax_[i] = MailAccountList[Account[i]].DownloadMaxExists + 1;
+                        for (int i_ = 0; i_ < FileCount; i_++)
+                        {
+                            IdxMin_[i_, i] = MailAccountList[Account[i]].DownloadMinExists[i_] + 1;
+                            IdxMax_[i_, i] = MailAccountList[Account[i]].DownloadMaxExists[i_] + 1;
+                        }
                     }
                 }
                 if (FileDownloadMode_ == FileDownloadMode.Download || FileDownloadMode_ == FileDownloadMode.DownloadDigest)
@@ -1609,26 +1614,26 @@ namespace BackupToMail
                         Console_WriteLine(" Good segments: " + MF[i_].MapCount(1).ToString());
                         Console_WriteLine(" Bad or missing segments: " + MF[i_].MapCount(0).ToString());
                     }
+                    for (int i = 0; i < Account.Length; i++)
+                    {
+                        string TempInfo = "";
+                        TempInfo = TempInfo + " Account " + Account[i];
+                        TempInfo = TempInfo + " from " + ((IdxMin[i] > 0) ? IdxMin[i].ToString() : "the first");
+                        TempInfo = TempInfo + " to " + ((IdxMax[i] > 0) ? IdxMax[i].ToString() : "the last");
+                        if (IdxMin_[i_, i] > 0)
+                        {
+                            TempInfo = TempInfo + " - found from " + IdxMin_[i_, i] + " to " + IdxMax_[i_, i];
+                        }
+                        else
+                        {
+                            TempInfo = TempInfo + " - not found";
+                        }
+                        Console_WriteLine(TempInfo);
+                    }
                 }
                 Console_WriteLine("Downloaded bytes: " + KBPS_B());
                 Console_WriteLine("Download time: " + KBPS_T());
                 Console_WriteLine("Average download speed: " + KBPS());
-                for (int i = 0; i < Account.Length; i++)
-                {
-                    string TempInfo = "";
-                    TempInfo = TempInfo + "Account " + Account[i];
-                    TempInfo = TempInfo + " from " + ((IdxMin[i] > 0) ? IdxMin[i].ToString() : "the first message");
-                    TempInfo = TempInfo + " to " + ((IdxMax[i] > 0) ? IdxMax[i].ToString() : "the last message");
-                    if (IdxMin_[i] > 0)
-                    {
-                        TempInfo = TempInfo + " - found from " + IdxMin_[i] + " to " + IdxMax_[i];
-                    }
-                    else
-                    {
-                        TempInfo = TempInfo + " - not found";
-                    }
-                    Console_WriteLine(TempInfo);
-                }
                 Console_WriteLine("Total time: " + TimeHMSM(TSW.Elapsed()));
                 ConsoleLineToLogSum = false;
                 ConsoleLineToLog = false;
