@@ -76,12 +76,8 @@ namespace BackupToMail
                         }
                         ToLogSize += Temp.LongLength;
 
-                        if (SWWorkTime < SW.Elapsed())
+                        if (SW.ProgressTriggeringValue(ref SWWorkTime))
                         {
-                            while (SWWorkTime < SW.Elapsed())
-                            {
-                                SWWorkTime += 1000L;
-                            }
                             MailSegment.Console_WriteLine("Segment " + (i + 1) + "/" + SegmentCount__ + " (" + ((i + 1) * 100 / SegmentCount__) + "%)");
                             MailSegment.Log(SW.Elapsed().ToString(), MailSegment.LogDiffS(i + 1).ToString(), (i + 1).ToString(), SegmentCount__.ToString(), MailSegment.LogDiffB(ToLogSize).ToString(), ToLogSize.ToString(), FileSize.ToString());
                             if ((i + 1) == SegmentCount__)
@@ -226,12 +222,8 @@ namespace BackupToMail
                                         }
                                     }
 
-                                    if (WorkTime < SW__.Elapsed())
+                                    if (SW__.ProgressTriggeringValue(ref WorkTime))
                                     {
-                                        while (WorkTime < SW__.Elapsed())
-                                        {
-                                            WorkTime += 1000L;
-                                        }
                                         MailSegment.Console_WriteLine("Period " + i + "/" + FileSize + " (" + (FileSize > 0 ? (i * 100 / FileSize) : 0) + "%); occurence " + (PeriodCount - iii - 1) + "/" + PeriodCount + " (" + (PeriodCount > 0 ? (((PeriodCount - iii - 1) * 100) / PeriodCount) : 0) + "%)");
                                         MailSegment.Log(SW__.Elapsed().ToString(), i.ToString(), FileSize.ToString(), (PeriodCount - iii - 1).ToString(), PeriodCount.ToString());
                                         if (((PeriodCount - iii - 1) == PeriodCount))

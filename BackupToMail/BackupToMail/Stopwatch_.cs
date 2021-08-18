@@ -33,5 +33,23 @@ namespace BackupToMail
         {
             Reset();
         }
+
+        public bool ProgressTriggeringValue(ref long TriggeringValue)
+        {
+            long Elapsed_ = Elapsed();
+            if (Elapsed_ > TriggeringValue)
+            {
+                long Delta = Elapsed_ - TriggeringValue;
+                Delta = Delta + 1000L;
+                Delta = Delta / 1000L;
+                Delta = Delta * 1000L;
+                TriggeringValue += Delta;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
     }
 }

@@ -183,12 +183,8 @@ namespace BackupToMail
                                         }
                                     }
 
-                                    if (SWWorkTime < SWProgress.Elapsed())
+                                    if (SWProgress.ProgressTriggeringValue(ref SWWorkTime))
                                     {
-                                        while (SWWorkTime < SWProgress.Elapsed())
-                                        {
-                                            SWWorkTime += 1000L;
-                                        }
                                         MailSegment.Console_WriteLine("Segment " + (i + 1) + "/" + SegmentCount__ + " (" + ((i + 1) * 100 / SegmentCount__) + "%)");
                                         MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffS(i + 1).ToString(), (i + 1).ToString(), SegmentCount__.ToString(), MailSegment.LogDiffB(ToLogSize).ToString(), ToLogSize.ToString(), FileSize.ToString());
                                         if ((i + 1) == SegmentCount__)

@@ -410,12 +410,8 @@ namespace BackupToMail
                                 LastGoodSegment = i;
                             }
 
-                            if (SWWorkTime < SWProgress.Elapsed())
+                            if (SWProgress.ProgressTriggeringValue(ref SWWorkTime))
                             {
-                                while (SWWorkTime < SWProgress.Elapsed())
-                                {
-                                    SWWorkTime += 1000L;
-                                }
                                 MailSegment.Console_WriteLine(Prefix1 + " file progress: " + (i + 1) + "/" + XSegments + " (" + (i * 100 / XSegments) + "%)");
                             }
                         }
@@ -689,6 +685,7 @@ namespace BackupToMail
                                             WorkPoolCount++;
                                         }
 
+                                        MailSegment.Console_WriteLine("Code generation started");
                                         for (long i = 0; i < WorkPoolCount; i++)
                                         {
                                             MF.DataValueParamsOffset(FilePointer);
@@ -711,20 +708,6 @@ namespace BackupToMail
                                                 WorkPoolThread[i_] = new Thread(() => WorkPoolEncode(i__));
                                                 WorkPoolThread[i_].Start();
                                             }
-                                            if (SWWorkTime < SWProgress.Elapsed())
-                                            {
-                                                while (SWWorkTime < SWProgress.Elapsed())
-                                                {
-                                                    SWWorkTime += 1000L;
-                                                }
-                                                long I__ = ((i + 1) * WorkPoolSizeL);
-                                                MailSegment.Console_WriteLine("Code generation progress: " + I__ + "/" + ValuesPerSegment + " (" + (i * WorkPoolSizeL * 100L / ValuesPerSegment) + "%)");
-                                                MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(I__).ToString(), I__.ToString(), ValuesPerSegment.ToString());
-                                                if ((I__ + 1) >= ValuesPerSegment)
-                                                {
-                                                    PrintLastProgress = false;
-                                                }
-                                            }
                                             for (int i_ = 0; i_ < ReedSolomonComputeThreads; i_++)
                                             {
                                                 WorkPoolThread[i_].Join();
@@ -739,6 +722,17 @@ namespace BackupToMail
                                             for (int i_ = 0; i_ < ReedSolomonFileThreads; i_++)
                                             {
                                                 WorkFileThread[i_].Join();
+                                            }
+
+                                            if (SWProgress.ProgressTriggeringValue(ref SWWorkTime))
+                                            {
+                                                long I__ = ((i + 1) * WorkPoolSizeL);
+                                                MailSegment.Console_WriteLine("Code generation progress: " + I__ + "/" + ValuesPerSegment + " (" + (i * WorkPoolSizeL * 100L / ValuesPerSegment) + "%)");
+                                                MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(I__).ToString(), I__.ToString(), ValuesPerSegment.ToString());
+                                                if ((I__ + 1) >= ValuesPerSegment)
+                                                {
+                                                    PrintLastProgress = false;
+                                                }
                                             }
 
                                             FilePointer += PoolSizeBytes;
@@ -834,6 +828,7 @@ namespace BackupToMail
                                             WorkPoolCount++;
                                         }
 
+                                        MailSegment.Console_WriteLine("Data recovery started");
                                         for (long i = 0; i < WorkPoolCount; i++)
                                         {
                                             MF.DataValueParamsOffset(FilePointer);
@@ -865,20 +860,6 @@ namespace BackupToMail
                                                 WorkPoolThread[i_] = new Thread(() => WorkPoolDecode(i__));
                                                 WorkPoolThread[i_].Start();
                                             }
-                                            if (SWWorkTime < SWProgress.Elapsed())
-                                            {
-                                                while (SWWorkTime < SWProgress.Elapsed())
-                                                {
-                                                    SWWorkTime += 1000L;
-                                                }
-                                                long I__ = ((i + 1) * WorkPoolSizeL);
-                                                MailSegment.Console_WriteLine("Recovery progress: " + I__ + "/" + ValuesPerSegment + " (" + (i * WorkPoolSizeL * 100L / ValuesPerSegment) + "%)");
-                                                MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(I__).ToString(), I__.ToString(), ValuesPerSegment.ToString());
-                                                if ((i + 1) == ValuesPerSegment)
-                                                {
-                                                    PrintLastProgress = false;
-                                                }
-                                            }
                                             for (int i_ = 0; i_ < ReedSolomonComputeThreads; i_++)
                                             {
                                                 WorkPoolThread[i_].Join();
@@ -895,12 +876,23 @@ namespace BackupToMail
                                                 WorkFileThread[i_].Join();
                                             }
 
+                                            if (SWProgress.ProgressTriggeringValue(ref SWWorkTime))
+                                            {
+                                                long I__ = ((i + 1) * WorkPoolSizeL);
+                                                MailSegment.Console_WriteLine("Data recovery progress: " + I__ + "/" + ValuesPerSegment + " (" + (i * WorkPoolSizeL * 100L / ValuesPerSegment) + "%)");
+                                                MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(I__).ToString(), I__.ToString(), ValuesPerSegment.ToString());
+                                                if ((i + 1) == ValuesPerSegment)
+                                                {
+                                                    PrintLastProgress = false;
+                                                }
+                                            }
+
                                             FilePointer += PoolSizeBytes;
                                         }
 
                                         if (PrintLastProgress)
                                         {
-                                            MailSegment.Console_WriteLine("Recovery progress: " + ValuesPerSegment + "/" + ValuesPerSegment + " (100%)");
+                                            MailSegment.Console_WriteLine("Data recovery progress: " + ValuesPerSegment + "/" + ValuesPerSegment + " (100%)");
                                             MailSegment.Log(TSW.Elapsed().ToString(), MailSegment.LogDiffB(ValuesPerSegment).ToString(), (ValuesPerSegment).ToString(), ValuesPerSegment.ToString());
                                         }
 
